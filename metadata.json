@@ -1,0 +1,7 @@
+{
+  "name": "JARVIS",
+  "description": "Next-Generation Futuristic AI Personal Assistant with Voice, Memory, Tools & Holographic Energy Core",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
+
