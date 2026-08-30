@@ -1,0 +1,21 @@
+format_version: '11'
+default_step_lib_source: https://github.com/bitrise-io/bitrise-steplib.git
+project_type: android
+
+workflows:
+  primary:
+    steps:
+      - activate-ssh-key@4:
+          run_if: '{{getenv "SSH_RSA_PRIVATE_KEY" | ne ""}}'
+      - git-clone@8: {}
+      - script@1:
+          title: Setup Gradle wrapper permission and build APK
+          inputs:
+            - content: |
+                #!/bin/bash
+                set -ex
+                chmod +x ./gradlew || true
+                gradle assembleDebug --stacktrace || ./gradlew assembleDebug --stacktrace
+      - deploy-to-bitrise-io@2:
+          inputs:
+            - deploy_path: app/build/outputs/apk/debug
