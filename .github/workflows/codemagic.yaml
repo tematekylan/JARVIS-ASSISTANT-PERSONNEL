@@ -1,0 +1,20 @@
+workflows:
+  android-apk-build:
+    name: JARVIS Android APK Build
+    max_build_duration: 30
+    instance_type: linux_x2
+    environment:
+      java: 17
+    scripts:
+      - name: Build Android Debug APK
+        script: |
+          gradle assembleDebug --stacktrace
+    artifacts:
+      - app/build/outputs/apk/**/*.apk
+    publishing:
+      email:
+        recipients:
+          - temateteddy@gmail.com
+        notify:
+          success: true
+          failure: true
