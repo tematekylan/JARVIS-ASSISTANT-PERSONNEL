@@ -123,7 +123,7 @@ fun JarvisCommandBar(
             )
             .padding(horizontal = 12.dp, vertical = 8.dp)
     ) {
-        // Quick Action Directives
+        // Quick Action Directives & Slash Commands
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -131,12 +131,39 @@ fun JarvisCommandBar(
                 .padding(bottom = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
+            // High-Demand Market Slash Shortcuts
+            QuickSlashChip(tag = "/humain", desc = "Langage 100% Humain", color = JarvisEmerald, onClick = {
+                onInputTextChange("/humain ")
+            })
+            QuickSlashChip(tag = "/rayonx", desc = "Scan & Vue Éclatée", color = JarvisCyan, onClick = {
+                onInputTextChange("/rayonx ")
+            })
+            QuickSlashChip(tag = "/plan", desc = "Masterplan A-Z", color = JarvisAmber, onClick = {
+                onInputTextChange("/plan ")
+            })
+            QuickSlashChip(tag = "/code", desc = "Code Production", color = JarvisBlue, onClick = {
+                onInputTextChange("/code ")
+            })
+            QuickSlashChip(tag = "/debug", desc = "Audit & Debug", color = JarvisCrimson, onClick = {
+                onInputTextChange("/debug ")
+            })
+            QuickSlashChip(tag = "/resume", desc = "Synthèse 3 points", color = JarvisCyanGlow, onClick = {
+                onInputTextChange("/resume ")
+            })
+            QuickSlashChip(tag = "/strategie", desc = "Business & Marché", color = JarvisEmerald, onClick = {
+                onInputTextChange("/strategie ")
+            })
+            QuickSlashChip(tag = "/ironman", desc = "Protocole Mk-85", color = JarvisAmber, onClick = {
+                onInputTextChange("/ironman ")
+            })
+
+            // Standard Utility Directives
             QuickChip(label = "⚡ Statut Système", onClick = { onQuickPrompt("Donne-moi le statut complet du système JARVIS") })
             QuickChip(label = "🌤️ Météo Paris", onClick = { onQuickPrompt("Quelle est la météo actuelle à Paris ?") })
-            QuickChip(label = "🧮 25 × 37", onClick = { onQuickPrompt("Combien font 25 * 37 ?") })
+            QuickChip(label = "🧮 Calculateur", onClick = { onQuickPrompt("Combien font 25 * 37 ?") })
             QuickChip(label = "🧠 Mes Souvenirs", onClick = { onQuickPrompt("Quels souvenirs as-tu enregistrés dans ta mémoire ?") })
             QuickChip(label = "📝 Prendre Note", onClick = { onQuickPrompt("Note: Rendez-vous technique demain à 14h") })
-            QuickChip(label = "🌐 Actualités IA", onClick = { onQuickPrompt("Recherche les dernières actualités sur l'intelligence artificielle") })
+            QuickChip(label = "🌐 Recherche Web", onClick = { onQuickPrompt("Recherche les dernières actualités sur l'intelligence artificielle") })
         }
 
         // Image Attachment Preview
@@ -320,5 +347,41 @@ fun QuickChip(label: String, onClick: () -> Unit) {
             fontWeight = FontWeight.Medium,
             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
         )
+    }
+}
+
+@Composable
+fun QuickSlashChip(
+    tag: String,
+    desc: String,
+    color: Color = JarvisCyan,
+    onClick: () -> Unit
+) {
+    Surface(
+        color = color.copy(alpha = 0.12f),
+        shape = RoundedCornerShape(16.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.6f)),
+        modifier = Modifier
+            .clickable { onClick() }
+            .testTag("slash_chip_$tag")
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = tag,
+                color = color,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+            Text(
+                text = "• $desc",
+                color = JarvisTextPrimary,
+                fontSize = 10.sp
+            )
+        }
     }
 }

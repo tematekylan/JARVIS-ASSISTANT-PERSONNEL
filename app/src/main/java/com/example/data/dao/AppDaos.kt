@@ -11,6 +11,7 @@ import com.example.data.entity.MemoryEntity
 import com.example.data.entity.MessageEntity
 import com.example.data.entity.NoteEntity
 import com.example.data.entity.ToolLogEntity
+import com.example.data.entity.UserAccountEntity
 import com.example.data.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -126,4 +127,25 @@ interface UserSettingsDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun saveUserSettings(settings: UserSettingsEntity)
+}
+
+@Dao
+interface UserAccountDao {
+    @Query("SELECT * FROM user_accounts ORDER BY lastLoginAt DESC")
+    fun getAllAccounts(): Flow<List<UserAccountEntity>>
+
+    @Query("SELECT * FROM user_accounts WHERE email = :email LIMIT 1")
+    suspend fun getAccountByEmail(email: String): UserAccountEntity?
+
+    @Query("SELECT * FROM user_accounts WHERE phone = :phone LIMIT 1")
+    suspend fun getAccountByPhone(phone: String): UserAccountEntity?
+
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAccount(account: UserAccountEntity): Long
+
+    @Update
+    suspend fun updateAccount(account: UserAccountEntity)
+
+    @Delete
+    suspend fun deleteAccount(account: UserAccountEntity)
 }

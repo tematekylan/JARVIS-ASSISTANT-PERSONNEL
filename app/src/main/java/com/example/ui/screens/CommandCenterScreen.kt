@@ -182,6 +182,119 @@ fun CommandCenterScreen(
             }
         }
 
+        // Section 2.5: Slash Command Matrix & Market Shortcuts
+        item {
+            Text(
+                text = "⚡ RACCOURCIS & PROTOCOLES SLASH (/)",
+                color = JarvisCyan,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 1.5.sp
+            )
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                colors = CardDefaults.cardColors(containerColor = JarvisBgCard),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = "COMMANDES RAPIDES INTÉGRÉES (Cliquez pour lancer dans le Chat) :",
+                        color = JarvisTextMuted,
+                        fontSize = 10.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SlashCommandCard(
+                            tag = "/humain",
+                            title = "Langage 100% Humain",
+                            desc = "Zéro tournure robotique, ton naturel, amical et vivant",
+                            color = JarvisEmerald,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/humain Parle-moi naturellement et dis-moi comment tu vois notre collaboration", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                        SlashCommandCard(
+                            tag = "/rayonx",
+                            title = "Vue Éclatée / X-Ray",
+                            desc = "Schéma technique complet, pièces, moteurs et circuits",
+                            color = JarvisCyan,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/rayonx Analyse les composants internes d'un moteur d'avion à réaction", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SlashCommandCard(
+                            tag = "/plan",
+                            title = "Masterplan A à Z",
+                            desc = "Plan directeur exécutif complet par blocs & jalons",
+                            color = JarvisAmber,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/plan Plan d'exécution complet pour concevoir une application mobile de A à Z", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                        SlashCommandCard(
+                            tag = "/code",
+                            title = "Code Production",
+                            desc = "Code pur, propre, typé et optimisé sans blabla",
+                            color = JarvisBlue,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/code Écris une fonction Kotlin de retry exponentiel pour coroutines", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SlashCommandCard(
+                            tag = "/debug",
+                            title = "Audit & Debug",
+                            desc = "Recherche de bugs et correctif chirurgical",
+                            color = JarvisCrimson,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/debug Pourquoi un StateFlow ne déclenche pas de recomposition Compose ?", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                        SlashCommandCard(
+                            tag = "/ironman",
+                            title = "Protocole Mk-85",
+                            desc = "Télémétrie Stark, réacteur Arc & visée HUD",
+                            color = JarvisCyanGlow,
+                            modifier = Modifier.weight(1f),
+                            onClick = {
+                                viewModel.sendUserMessage("/ironman Jarvis, lance le protocole de combat et scanne la zone", null)
+                                viewModel.navigateTo(com.example.ui.components.JarvisScreen.CHAT)
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
         // Section 3: Interactive Tool Test Workbench
         item {
             Card(
@@ -437,6 +550,47 @@ fun ToolSelectorChip(
             fontFamily = FontFamily.Monospace,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
         )
+    }
+}
+
+@Composable
+fun SlashCommandCard(
+    tag: String,
+    title: String,
+    desc: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = JarvisBgCardElevated),
+        shape = RoundedCornerShape(10.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, color.copy(alpha = 0.5f)),
+        modifier = modifier.clickable { onClick() }
+    ) {
+        Column(modifier = Modifier.padding(10.dp)) {
+            Text(
+                text = tag,
+                color = color,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = title,
+                color = JarvisTextPrimary,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = desc,
+                color = JarvisTextMuted,
+                fontSize = 9.sp,
+                lineHeight = 12.sp
+            )
+        }
     }
 }
 

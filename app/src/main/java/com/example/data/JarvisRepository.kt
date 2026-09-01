@@ -5,6 +5,7 @@ import com.example.data.entity.MemoryEntity
 import com.example.data.entity.MessageEntity
 import com.example.data.entity.NoteEntity
 import com.example.data.entity.ToolLogEntity
+import com.example.data.entity.UserAccountEntity
 import com.example.data.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
@@ -126,4 +127,19 @@ class JarvisRepository(private val db: AppDatabase) {
     suspend fun saveUserSettings(settings: UserSettingsEntity) {
         db.userSettingsDao().saveUserSettings(settings)
     }
+
+    // User Accounts
+    val allUserAccounts: Flow<List<UserAccountEntity>> = db.userAccountDao().getAllAccounts()
+
+    suspend fun getAccountByEmail(email: String): UserAccountEntity? =
+        db.userAccountDao().getAccountByEmail(email)
+
+    suspend fun getAccountByPhone(phone: String): UserAccountEntity? =
+        db.userAccountDao().getAccountByPhone(phone)
+
+    suspend fun createOrUpdateAccount(account: UserAccountEntity): Long =
+        db.userAccountDao().insertAccount(account)
+
+    suspend fun deleteAccount(account: UserAccountEntity) =
+        db.userAccountDao().deleteAccount(account)
 }

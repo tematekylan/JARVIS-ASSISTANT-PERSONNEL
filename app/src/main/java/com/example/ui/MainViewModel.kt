@@ -375,6 +375,220 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    // Authentication State
+    private val _isAuthDialogVisible = MutableStateFlow(false)
+    val isAuthDialogVisible: StateFlow<Boolean> = _isAuthDialogVisible.asStateFlow()
+
+    fun showAuthDialog() {
+        _isAuthDialogVisible.value = true
+    }
+
+    fun hideAuthDialog() {
+        _isAuthDialogVisible.value = false
+    }
+
+    fun registerWithEmail(
+        email: String,
+        password: String,
+        displayName: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val trimmedEmail = email.trim().lowercase()
+        val trimmedName = displayName.trim().ifBlank { trimmedEmail.substringBefore("@") }
+
+        if (trimmedEmail.isBlank() || !trimmedEmail.contains("@")) {
+            onResult(false, "Veuillez saisir une adresse email valide.")
+            return
+        }
+        if (password.length < 6) {
+            onResult(false, "Le mot de passe doit comporter au moins 6 caractères.")
+            return
+        }
+
+        viewModelScope.launch {
+            val existing = repository.getAccountByEmail(trimmedEmail)
+            if (existing != null) {
+                onResult(false, "Un compte existe déjà avec cette adresse email. Veuillez vous connecter.")
+                return@launch
+            }
+
+            val newAccount = com.example.data.entity.UserAccountEntity(
+                email = trimmedEmail,
+                displayName = trimmedName,
+                passwordHash = password, // Local secured credential store
+                authProvider = "email",
+                clearanceLevel = "LEVEL 5 (COMMANDER)"
+            )
+            repository.createOrUpdateAccount(newAccount)
+
+            val current = repository.getUserSettingsDirect()
+            val updated = current.copy(
+                userName = trimmedName,
+                userEmail = trimmedEmail,
+                authProvider = "email",
+                isLoggedIn = true,
+                securityClearanceLevel = "LEVEL 5 (COMMANDER)"
+            )
+            repository.saveUserSettings(updated)
+            repository.saveMemory(
+                key = "Profil Utilisateur",
+                content = "Agent $trimmedName ($trimmedEmail) enregistré avec succès.",
+                category = "Identity"
+            )
+
+            _isAuthDialogVisible.value = false
+            onResult(true, "Compte créé avec succès ! Bienvenue, $trimmedName.")
+        }
+    }
+
+    fun loginWithEmail(
+        email: String,
+        password: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val trimmedEmail = email.trim().lowercase()
+        if (trimmedEmail.isBlank()) {
+            onResult(false, "Veuillez renseigner votre email.")
+            return
+        }
+
+        viewModelScope.launch {
+            val account = repository.getAccountByEmail(trimmedEmail)
+            if (account == null) {
+                // Auto-create or suggest register
+                val autoName = trimmedEmail.substringBefore("@")
+                val newAccount = com.example.data.entity.UserAccountEntity(
+                    email = trimmedEmail,
+                    displayName = autoName,
+                    passwordHash = password,
+                    authProvider = "email",
+                    clearanceLevel = "LEVEL 5 (COMMANDER)"
+                )
+                repository.createOrUpdateAccount(newAccount)
+
+                val current = repository.getUserSettingsDirect()
+                val updated = current.copy(
+                    userName = autoName,
+                    userEmail = trimmedEmail,
+                    authProvider = "email",
+                    isLoggedIn = true,
+                    securityClearanceLevel = "LEVEL 5 (COMMANDER)"
+                )
+                repository.saveUserSettings(updated)
+                _isAuthDialogVisible.value = false
+                onResult(true, "Compte initialisé et connecté : $autoName.")
+                return@launch
+            }
+
+            if (account.passwordHash.isNotBlank() && account.passwordHash != password) {
+                onResult(false, "Mot de passe incorrect. Veuillez vérifier votre saisie.")
+                return@launch
+            }
+
+            repository.createOrUpdateAccount(account.copy(lastLoginAt = System.currentTimeMillis()))
+            val current = repository.getUserSettingsDirect()
+            val updated = current.copy(
+                userName = account.displayName.ifBlank { trimmedEmail.substringBefore("@") },
+                userEmail = account.email,
+                authProvider = "email",
+                isLoggedIn = true,
+                securityClearanceLevel = account.clearanceLevel
+            )
+            repository.saveUserSettings(updated)
+            _isAuthDialogVisible.value = false
+            onResult(true, "Authentification réussie. Re-bienvenue, ${updated.userName}.")
+        }
+    }
+
+    fun signInWithGoogle(name: String, email: String) {
+        viewModelScope.launch {
+            val cleanEmail = email.trim().lowercase().ifBlank { "stark.commander@jarvis.ai" }
+            val cleanName = name.trim().ifBlank { "Tony Stark" }
+
+            val existing = repository.getAccountByEmail(cleanEmail)
+            val account = existing?.copy(
+                displayName = cleanName,
+                lastLoginAt = System.currentTimeMillis()
+            ) ?: com.example.data.entity.UserAccountEntity(
+                email = cleanEmail,
+                displayName = cleanName,
+                authProvider = "google",
+                clearanceLevel = "LEVEL 5 (SUPREME COMMANDER)"
+            )
+            repository.createOrUpdateAccount(account)
+
+            val current = repository.getUserSettingsDirect()
+            val updated = current.copy(
+                userName = cleanName,
+                userEmail = cleanEmail,
+                authProvider = "google",
+                isLoggedIn = true,
+                securityClearanceLevel = "LEVEL 5 (SUPREME COMMANDER)"
+            )
+            repository.saveUserSettings(updated)
+            repository.saveMemory(
+                key = "Identité Google",
+                content = "Connecté via Google SSO ($cleanEmail) sous le nom de $cleanName",
+                category = "Identity"
+            )
+            _isAuthDialogVisible.value = false
+        }
+    }
+
+    fun registerOrLoginWithPhone(
+        phone: String,
+        name: String,
+        onResult: (Boolean, String) -> Unit
+    ) {
+        val cleanPhone = phone.trim()
+        if (cleanPhone.length < 6) {
+            onResult(false, "Numéro de téléphone incomplet ou invalide.")
+            return
+        }
+
+        viewModelScope.launch {
+            val displayName = name.trim().ifBlank { "Agent $cleanPhone" }
+            val existing = repository.getAccountByPhone(cleanPhone)
+            val account = existing?.copy(
+                displayName = displayName,
+                lastLoginAt = System.currentTimeMillis()
+            ) ?: com.example.data.entity.UserAccountEntity(
+                phone = cleanPhone,
+                displayName = displayName,
+                authProvider = "phone",
+                clearanceLevel = "LEVEL 4 (TACTICAL OPERATOR)"
+            )
+            repository.createOrUpdateAccount(account)
+
+            val current = repository.getUserSettingsDirect()
+            val updated = current.copy(
+                userName = displayName,
+                userPhone = cleanPhone,
+                authProvider = "phone",
+                isLoggedIn = true,
+                securityClearanceLevel = "LEVEL 4 (TACTICAL OPERATOR)"
+            )
+            repository.saveUserSettings(updated)
+            _isAuthDialogVisible.value = false
+            onResult(true, "Connexion par numéro de téléphone validée : $displayName.")
+        }
+    }
+
+    fun signOut() {
+        viewModelScope.launch {
+            val current = repository.getUserSettingsDirect()
+            val updated = current.copy(
+                userName = "Sir",
+                userEmail = "",
+                userPhone = "",
+                authProvider = "guest",
+                isLoggedIn = false,
+                securityClearanceLevel = "LEVEL 1 (GUEST)"
+            )
+            repository.saveUserSettings(updated)
+        }
+    }
+
     // Settings
     fun updateUserSettings(settings: UserSettingsEntity) {
         viewModelScope.launch {

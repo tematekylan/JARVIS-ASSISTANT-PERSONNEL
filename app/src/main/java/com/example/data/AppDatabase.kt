@@ -9,12 +9,14 @@ import com.example.data.dao.MemoryDao
 import com.example.data.dao.MessageDao
 import com.example.data.dao.NoteDao
 import com.example.data.dao.ToolLogDao
+import com.example.data.dao.UserAccountDao
 import com.example.data.dao.UserSettingsDao
 import com.example.data.entity.ConversationEntity
 import com.example.data.entity.MemoryEntity
 import com.example.data.entity.MessageEntity
 import com.example.data.entity.NoteEntity
 import com.example.data.entity.ToolLogEntity
+import com.example.data.entity.UserAccountEntity
 import com.example.data.entity.UserSettingsEntity
 
 @Database(
@@ -24,9 +26,10 @@ import com.example.data.entity.UserSettingsEntity
         MemoryEntity::class,
         NoteEntity::class,
         ToolLogEntity::class,
-        UserSettingsEntity::class
+        UserSettingsEntity::class,
+        UserAccountEntity::class
     ],
-    version = 1,
+    version = 2,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +39,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun noteDao(): NoteDao
     abstract fun toolLogDao(): ToolLogDao
     abstract fun userSettingsDao(): UserSettingsDao
+    abstract fun userAccountDao(): UserAccountDao
 
     companion object {
         @Volatile

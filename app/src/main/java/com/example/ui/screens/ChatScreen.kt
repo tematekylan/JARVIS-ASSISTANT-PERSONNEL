@@ -22,18 +22,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Mic
+import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -57,25 +58,26 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.data.entity.ConversationEntity
 import com.example.data.entity.MessageEntity
 import com.example.ui.MainViewModel
 import com.example.ui.components.HolographicCore
 import com.example.ui.components.JarvisCommandBar
 import com.example.ui.components.JarvisCoreState
 import com.example.ui.components.MessageBubble
+import com.example.ui.components.ThinkingBubble
+import com.example.ui.theme.JarvisAmber
 import com.example.ui.theme.JarvisBgCard
 import com.example.ui.theme.JarvisBgSurface
 import com.example.ui.theme.JarvisBgVoid
 import com.example.ui.theme.JarvisBlue
 import com.example.ui.theme.JarvisBorderGlow
+import com.example.ui.theme.JarvisCrimson
 import com.example.ui.theme.JarvisCyan
 import com.example.ui.theme.JarvisCyanGlow
 import com.example.ui.theme.JarvisEmerald
 import com.example.ui.theme.JarvisTextMuted
 import com.example.ui.theme.JarvisTextPrimary
 import com.example.ui.theme.JarvisTextSecondary
-import kotlinx.coroutines.launch
 
 @Composable
 fun ChatScreen(
@@ -83,7 +85,6 @@ fun ChatScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     val listState = rememberLazyListState()
 
     val currentConversation by viewModel.currentConversation.collectAsState()
@@ -103,30 +104,29 @@ fun ChatScreen(
         }
     }
 
-    // Auto-scroll when messages change or streaming updates
-    LaunchedEffect(messages.size, streamingChunk) {
-        if (messages.isNotEmpty() || streamingChunk.isNotEmpty()) {
-            listState.animateScrollToItem((messages.size).coerceAtLeast(0))
+    // Auto-scroll to bottom whenever a new message or streaming chunk arrives
+    val totalItemCount = messages.size + (if (isStreaming) 1 else 0)
+    LaunchedEffect(totalItemCount, streamingChunk.length) {
+        if (totalItemCount > 0) {
+            listState.animateScrollToItem(totalItemCount - 1)
         }
     }
+
+    val isChatEmpty = messages.isEmpty() && !isStreaming
 
     Column(
         modifier = modifier
             .fillMaxSize()
             .background(JarvisBgVoid)
     ) {
-        // Upper Center: Holographic Reactor Core
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(top = 10.dp, bottom = 4.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            HolographicCore(
-                state = coreState,
-                audioAmplitude = audioAmplitude,
-                size = 140.dp,
-                onClick = {
+        // Top Section: Conditional HUD header
+        if (!isChatEmpty) {
+            // Compact, non-intrusive status header during conversation
+            CompactChatHudBar(
+                coreState = coreState,
+                conversationTitle = currentConversation?.title ?: "Session Directe",
+                onNewChat = { viewModel.startNewConversation() },
+                onToggleVoice = {
                     if (coreState == JarvisCoreState.LISTENING) {
                         viewModel.stopListening()
                     } else if (coreState == JarvisCoreState.SPEAKING) {
@@ -138,16 +138,27 @@ fun ChatScreen(
             )
         }
 
-        // Middle: Message Stream & History
+        // Middle Section: Messages Stream & History OR Welcome Screen
         Box(
             modifier = Modifier
                 .weight(1f)
                 .fillMaxWidth()
         ) {
-            if (messages.isEmpty() && streamingChunk.isEmpty()) {
-                // Empty State / Welcome Screen
+            if (isChatEmpty) {
+                // Empty State / Welcome Screen with central Holographic Core
                 EmptyChatWelcome(
                     userName = viewModel.userSettings.collectAsState().value?.userName ?: "Sir",
+                    coreState = coreState,
+                    audioAmplitude = audioAmplitude,
+                    onCoreClick = {
+                        if (coreState == JarvisCoreState.LISTENING) {
+                            viewModel.stopListening()
+                        } else if (coreState == JarvisCoreState.SPEAKING) {
+                            viewModel.stopSpeaking()
+                        } else {
+                            viewModel.startListening()
+                        }
+                    },
                     onPromptSelect = { prompt ->
                         viewModel.sendUserMessage(prompt, null)
                     }
@@ -157,8 +168,8 @@ fun ChatScreen(
                     state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .padding(horizontal = 8.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                        .padding(horizontal = 4.dp),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
                     items(messages, key = { it.id }) { msg ->
                         MessageBubble(
@@ -167,25 +178,32 @@ fun ChatScreen(
                         )
                     }
 
-                    // Live Streaming Chunk Bubble
-                    if (isStreaming && streamingChunk.isNotEmpty()) {
-                        item {
-                            MessageBubble(
-                                message = MessageEntity(
-                                    conversationId = currentConversation?.id ?: 0,
-                                    role = "assistant",
-                                    content = streamingChunk,
-                                    timestamp = System.currentTimeMillis()
-                                ),
-                                onSpeak = {}
-                            )
+                    // Live Streaming or Thinking Indicator
+                    if (isStreaming) {
+                        if (streamingChunk.isEmpty()) {
+                            item(key = "thinking_indicator") {
+                                ThinkingBubble()
+                            }
+                        } else {
+                            item(key = "live_stream_bubble") {
+                                MessageBubble(
+                                    message = MessageEntity(
+                                        conversationId = currentConversation?.id ?: 0,
+                                        role = "assistant",
+                                        content = streamingChunk,
+                                        timestamp = System.currentTimeMillis()
+                                    ),
+                                    onSpeak = {},
+                                    isLiveStreaming = true
+                                )
+                            }
                         }
                     }
                 }
             }
         }
 
-        // Bottom: Command Bar & Voice Controls
+        // Bottom: Command Bar with Slash shortcuts & Voice Controls
         JarvisCommandBar(
             inputText = inputText,
             onInputTextChange = { inputText = it },
@@ -225,75 +243,172 @@ fun ChatScreen(
 }
 
 @Composable
+fun CompactChatHudBar(
+    coreState: JarvisCoreState,
+    conversationTitle: String,
+    onNewChat: () -> Unit,
+    onToggleVoice: () -> Unit
+) {
+    val (statusLabel, statusColor) = when (coreState) {
+        JarvisCoreState.IDLE -> "JARVIS // ACTIF" to JarvisCyan
+        JarvisCoreState.LISTENING -> "ÉCOUTE EN DIRECT..." to JarvisEmerald
+        JarvisCoreState.THINKING -> "RÉFLEXION NEURALE..." to JarvisCyanGlow
+        JarvisCoreState.SPEAKING -> "PAROLE ACTIVE..." to JarvisBlue
+        JarvisCoreState.ERROR -> "ALERTE SYSTÈME" to JarvisCrimson
+    }
+
+    Surface(
+        color = Color(0xFF070F1E),
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(44.dp)
+            .border(
+                width = 0.5.dp,
+                color = JarvisBorderGlow
+            )
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(horizontal = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Status and Arc Indicator
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier.clickable { onToggleVoice() }
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(10.dp)
+                        .clip(CircleShape)
+                        .background(statusColor)
+                )
+                Text(
+                    text = statusLabel,
+                    color = statusColor,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace,
+                    letterSpacing = 1.sp
+                )
+                Text(
+                    text = "• $conversationTitle",
+                    color = JarvisTextMuted,
+                    fontSize = 10.sp,
+                    maxLines = 1,
+                    modifier = Modifier.widthIn(max = 140.dp)
+                )
+            }
+
+            // Quick Actions
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                IconButton(
+                    onClick = onToggleVoice,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = if (coreState == JarvisCoreState.SPEAKING || coreState == JarvisCoreState.LISTENING) Icons.Default.Stop else Icons.Default.Mic,
+                        contentDescription = "Voice action",
+                        tint = statusColor,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+
+                IconButton(
+                    onClick = onNewChat,
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Add,
+                        contentDescription = "New Session",
+                        tint = JarvisTextSecondary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 fun EmptyChatWelcome(
     userName: String,
+    coreState: JarvisCoreState,
+    audioAmplitude: Float,
+    onCoreClick: () -> Unit,
     onPromptSelect: (String) -> Unit
 ) {
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
-            .padding(24.dp),
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.Center
+        verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
-        Box(
-            modifier = Modifier
-                .size(48.dp)
-                .clip(CircleShape)
-                .background(JarvisCyan.copy(alpha = 0.1f))
-                .border(1.dp, JarvisCyan.copy(alpha = 0.4f), CircleShape),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = Icons.Default.AutoAwesome,
-                contentDescription = null,
-                tint = JarvisCyan,
-                modifier = Modifier.size(24.dp)
+        item {
+            Spacer(modifier = Modifier.height(10.dp))
+            HolographicCore(
+                state = coreState,
+                audioAmplitude = audioAmplitude,
+                size = 115.dp,
+                onClick = onCoreClick
             )
+            Spacer(modifier = Modifier.height(8.dp))
         }
 
-        Spacer(modifier = Modifier.height(14.dp))
+        item {
+            Text(
+                text = "SYSTÈME JARVIS EN LIGNE",
+                color = JarvisCyan,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.ExtraBold,
+                fontFamily = FontFamily.Monospace,
+                letterSpacing = 2.sp
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "Bonjour $userName. Tous les systèmes sont opérationnels.\nTouchez le réacteur pour parler ou saisissez une directive.",
+                color = JarvisTextSecondary,
+                fontSize = 12.sp,
+                textAlign = TextAlign.Center,
+                lineHeight = 16.sp
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+        }
 
-        Text(
-            text = "SYSTÈME INITIALISÉ",
-            color = JarvisCyan,
-            fontSize = 18.sp,
-            fontWeight = FontWeight.ExtraBold,
-            fontFamily = FontFamily.Monospace,
-            letterSpacing = 2.sp
-        )
-
-        Spacer(modifier = Modifier.height(6.dp))
-
-        Text(
-            text = "Bonjour $userName. Tous les systèmes sont opérationnels.\nParlez ou tapez une instruction pour débuter.",
-            color = JarvisTextSecondary,
-            fontSize = 13.sp,
-            textAlign = TextAlign.Center,
-            lineHeight = 18.sp
-        )
-
-        Spacer(modifier = Modifier.height(20.dp))
-
-        // Example Action Cards
-        Column(
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
+        // Directives Cards
+        item {
             WelcomePromptCard(
-                title = "⚡ Diagnostics & Télémétrie",
-                subtitle = "Vérifier l'état de charge, mémoire et liaison réseau",
+                title = "💬 /humain • Mode Conversation Naturelle",
+                subtitle = "Parle comme un vrai humain, sans aucune formule robotique d'IA",
+                onClick = { onPromptSelect("/humain Raconte-moi une anecdote passionnante sur l'ingénierie moderne comme si on était autour d'un café") }
+            )
+        }
+        item {
+            WelcomePromptCard(
+                title = "🔬 /rayonx • Vue Éclatée & Ingénierie",
+                subtitle = "Analyse interne des composants, moteur, châssis et électronique",
+                onClick = { onPromptSelect("/rayonx Analyse les composants internes d'une supercar électrique") }
+            )
+        }
+        item {
+            WelcomePromptCard(
+                title = "📋 /plan • Masterplan Exécutif de A à Z",
+                subtitle = "Génère un plan directeur par étapes, jalons et gestion des risques",
+                onClick = { onPromptSelect("/plan Stratégie de lancement d'une startup d'intelligence artificielle") }
+            )
+        }
+        item {
+            WelcomePromptCard(
+                title = "⚡ Télémétrie & Mémoire Sécurisée",
+                subtitle = "Vérifier le statut du réacteur Arc et sauvegarder des données",
                 onClick = { onPromptSelect("Donne-moi le rapport télémétrique complet des systèmes") }
-            )
-            WelcomePromptCard(
-                title = "🧠 Mémoire Persistante",
-                subtitle = "Enregistrer une préférence ou un souvenir dans le coffre",
-                onClick = { onPromptSelect("Rappelle-toi que je prépare une application mobile futuriste") }
-            )
-            WelcomePromptCard(
-                title = "🌤️ Conditions Météo Mondiales",
-                subtitle = "Obtenir les prévisions atmosphériques de Paris ou Tokyo",
-                onClick = { onPromptSelect("Quelle est la météo en direct à Paris ?") }
             )
         }
     }

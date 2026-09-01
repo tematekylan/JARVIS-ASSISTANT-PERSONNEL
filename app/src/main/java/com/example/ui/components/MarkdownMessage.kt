@@ -36,6 +36,18 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import coil.compose.AsyncImage
+import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Download
+import androidx.compose.material.icons.filled.Fullscreen
+import androidx.compose.material.icons.filled.Image
+import androidx.compose.material.icons.filled.Videocam
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.window.Dialog
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -76,33 +88,34 @@ import java.util.Locale
 fun MessageBubble(
     message: MessageEntity,
     onSpeak: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    isLiveStreaming: Boolean = false
 ) {
     val isUser = message.role == "user"
     val context = LocalContext.current
 
     val alignment = if (isUser) Alignment.End else Alignment.Start
-    val bubbleBg = if (isUser) Color(0xFF0C2442) else JarvisBgCard
-    val borderColor = if (isUser) JarvisBlue.copy(alpha = 0.6f) else JarvisBorderGlow
+    val bubbleBg = if (isUser) Color(0xFF0F2648) else JarvisBgCard
+    val borderColor = if (isUser) JarvisBlue.copy(alpha = 0.7f) else if (isLiveStreaming) JarvisCyan else JarvisBorderGlow
 
     Column(
         horizontalAlignment = alignment,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 12.dp, vertical = 6.dp)
+            .padding(horizontal = 8.dp, vertical = 5.dp)
     ) {
         // Role & Time Header
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = if (isUser) Arrangement.End else Arrangement.Start,
-            modifier = Modifier.padding(bottom = 4.dp, start = 4.dp, end = 4.dp)
+            modifier = Modifier.padding(bottom = 3.dp, start = 4.dp, end = 4.dp)
         ) {
             if (!isUser) {
                 Box(
                     modifier = Modifier
                         .size(16.dp)
                         .clip(CircleShape)
-                        .background(JarvisCyan.copy(alpha = 0.2f))
+                        .background(if (isLiveStreaming) JarvisCyan else JarvisCyan.copy(alpha = 0.2f))
                         .border(1.dp, JarvisCyan, CircleShape),
                     contentAlignment = Alignment.Center
                 ) {
@@ -110,13 +123,13 @@ fun MessageBubble(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(JarvisCyan)
+                            .background(if (isLiveStreaming) Color.White else JarvisCyan)
                     )
                 }
                 Spacer(modifier = Modifier.width(6.dp))
                 Text(
-                    text = "JARVIS",
-                    color = JarvisCyan,
+                    text = if (isLiveStreaming) "JARVIS • EN COURS..." else "JARVIS",
+                    color = if (isLiveStreaming) JarvisCyanGlow else JarvisCyan,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
@@ -167,7 +180,7 @@ fun MessageBubble(
         // Message Content Box
         Box(
             modifier = Modifier
-                .widthIn(max = 340.dp)
+                .fillMaxWidth(if (isUser) 0.88f else 0.98f)
                 .clip(
                     RoundedCornerShape(
                         topStart = 16.dp,
@@ -178,7 +191,7 @@ fun MessageBubble(
                 )
                 .background(bubbleBg)
                 .border(
-                    width = 1.dp,
+                    width = if (isLiveStreaming) 1.5.dp else 1.dp,
                     color = if (message.isError) JarvisCrimson else borderColor,
                     shape = RoundedCornerShape(
                         topStart = 16.dp,
@@ -190,10 +203,13 @@ fun MessageBubble(
                 .padding(14.dp)
         ) {
             Column {
-                RenderMarkdownContent(content = message.content, isError = message.isError)
+                RenderMarkdownContent(
+                    content = if (isLiveStreaming) "${message.content} ▌" else message.content,
+                    isError = message.isError
+                )
 
-                // Message Actions for Assistant responses
-                if (!isUser && message.content.isNotBlank()) {
+                // Message Actions for Assistant responses (hidden during live streaming)
+                if (!isUser && message.content.isNotBlank() && !isLiveStreaming) {
                     Spacer(modifier = Modifier.height(8.dp))
                     Row(
                         horizontalArrangement = Arrangement.End,
@@ -234,6 +250,73 @@ fun MessageBubble(
                         }
                     }
                 }
+            }
+        }
+    }
+}
+
+@Composable
+fun ThinkingBubble(
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.Start,
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 8.dp, vertical = 6.dp)
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(bottom = 3.dp, start = 4.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(14.dp)
+                    .clip(CircleShape)
+                    .background(JarvisCyanGlow.copy(alpha = 0.3f))
+                    .border(1.dp, JarvisCyanGlow, CircleShape),
+                contentAlignment = Alignment.Center
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(5.dp)
+                        .clip(CircleShape)
+                        .background(JarvisCyanGlow)
+                )
+            }
+            Spacer(modifier = Modifier.width(6.dp))
+            Text(
+                text = "JARVIS • RÉFLEXION EN COURS",
+                color = JarvisCyanGlow,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                fontFamily = FontFamily.Monospace
+            )
+        }
+
+        Box(
+            modifier = Modifier
+                .fillMaxWidth(0.85f)
+                .clip(RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp))
+                .background(JarvisBgCard)
+                .border(1.dp, JarvisCyan.copy(alpha = 0.5f), RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp, bottomStart = 4.dp, bottomEnd = 16.dp))
+                .padding(14.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                androidx.compose.material3.CircularProgressIndicator(
+                    modifier = Modifier.size(16.dp),
+                    strokeWidth = 2.dp,
+                    color = JarvisCyan
+                )
+                Text(
+                    text = "Analyse neurale et synthèse en direct...",
+                    color = JarvisTextSecondary,
+                    fontSize = 13.sp,
+                    fontStyle = FontStyle.Italic
+                )
             }
         }
     }
@@ -310,6 +393,11 @@ fun RenderMarkdownContent(content: String, isError: Boolean = false) {
             }
 
             when {
+                line.startsWith("![") && line.contains("](") && line.endsWith(")") -> {
+                    val alt = line.substringAfter("![").substringBefore("](")
+                    val url = line.substringAfter("](").substringBeforeLast(")")
+                    MediaImageCard(alt = alt, imageUrl = url)
+                }
                 line.startsWith("# ") -> {
                     Text(
                         text = line.removePrefix("# ").trim(),
@@ -468,4 +556,159 @@ fun FormattedInlineText(text: String, isError: Boolean = false) {
         fontSize = 14.sp,
         lineHeight = 20.sp
     )
+}
+
+@Composable
+fun MediaImageCard(alt: String, imageUrl: String) {
+    val context = LocalContext.current
+    var isFullScreenOpen by remember { mutableStateOf(false) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 6.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(Color(0xFF040914))
+            .border(1.dp, JarvisCyan.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+    ) {
+        // Header
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(JarvisBgCard)
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(
+                    imageVector = Icons.Default.Image,
+                    contentDescription = null,
+                    tint = JarvisCyanGlow,
+                    modifier = Modifier.size(14.dp)
+                )
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = "SYNTHÈSE VISUELLE IA",
+                    color = JarvisCyanGlow,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Bold,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                IconButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("Image URL", imageUrl)
+                        clipboard.setPrimaryClip(clip)
+                        Toast.makeText(context, "Lien copié dans le presse-papier", Toast.LENGTH_SHORT).show()
+                    },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.ContentCopy,
+                        contentDescription = "Copier le lien",
+                        tint = JarvisTextMuted,
+                        modifier = Modifier.size(14.dp)
+                    )
+                }
+                IconButton(
+                    onClick = { isFullScreenOpen = true },
+                    modifier = Modifier.size(24.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Fullscreen,
+                        contentDescription = "Plein écran",
+                        tint = JarvisCyan,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+
+        // Image Preview
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(240.dp)
+                .clickable { isFullScreenOpen = true },
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = imageUrl,
+                contentDescription = alt,
+                modifier = Modifier.fillMaxWidth().height(240.dp),
+                contentScale = ContentScale.Crop
+            )
+        }
+
+        if (alt.isNotBlank()) {
+            Text(
+                text = alt,
+                color = JarvisTextSecondary,
+                fontSize = 11.sp,
+                maxLines = 2,
+                fontStyle = FontStyle.Italic,
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
+            )
+        }
+    }
+
+    if (isFullScreenOpen) {
+        Dialog(onDismissRequest = { isFullScreenOpen = false }) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF030712))
+                    .border(1.5.dp, JarvisCyanGlow, RoundedCornerShape(16.dp))
+                    .padding(12.dp)
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "APERÇU PLEIN ÉCRAN",
+                            color = JarvisCyan,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        IconButton(
+                            onClick = { isFullScreenOpen = false },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Close,
+                                contentDescription = "Fermer",
+                                tint = JarvisCyanGlow,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    AsyncImage(
+                        model = imageUrl,
+                        contentDescription = alt,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .height(360.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                        contentScale = ContentScale.Fit
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Text(
+                        text = alt,
+                        color = JarvisTextPrimary,
+                        fontSize = 12.sp,
+                        modifier = Modifier.padding(horizontal = 4.dp)
+                    )
+                }
+            }
+        }
+    }
 }

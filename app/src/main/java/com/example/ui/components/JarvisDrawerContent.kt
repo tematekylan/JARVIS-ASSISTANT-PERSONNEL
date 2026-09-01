@@ -70,6 +70,12 @@ fun JarvisDrawerContent(
     onNewConversation: () -> Unit,
     onDeleteConversation: (Long) -> Unit,
     onTogglePin: (ConversationEntity) -> Unit,
+    userName: String = "Sir",
+    userEmail: String = "",
+    userPhone: String = "",
+    isLoggedIn: Boolean = false,
+    authProvider: String = "guest",
+    onOpenAuth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -109,7 +115,82 @@ fun JarvisDrawerContent(
                 )
             }
 
-            Spacer(modifier = Modifier.height(14.dp))
+            Spacer(modifier = Modifier.height(12.dp))
+
+            // User Profile / Authentication Card
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (isLoggedIn) JarvisEmerald.copy(alpha = 0.1f) else JarvisBgCard
+                ),
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (isLoggedIn) JarvisEmerald.copy(alpha = 0.5f) else JarvisBorderGlow
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { onOpenAuth() }
+                    .testTag("drawer_user_profile_card")
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .clip(CircleShape)
+                                .background(if (isLoggedIn) JarvisEmerald.copy(alpha = 0.2f) else JarvisCyan.copy(alpha = 0.15f))
+                                .border(1.dp, if (isLoggedIn) JarvisEmerald else JarvisCyan, CircleShape),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = userName.take(1).uppercase(),
+                                color = if (isLoggedIn) JarvisEmerald else JarvisCyan,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Column {
+                            Text(
+                                text = userName,
+                                color = JarvisTextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1
+                            )
+                            val subtext = if (isLoggedIn) {
+                                if (userEmail.isNotBlank()) userEmail else userPhone
+                            } else {
+                                "Connexion requise"
+                            }
+                            Text(
+                                text = subtext,
+                                color = if (isLoggedIn) JarvisCyanGlow else JarvisAmber,
+                                fontSize = 9.sp,
+                                fontFamily = FontFamily.Monospace,
+                                maxLines = 1
+                            )
+                        }
+                    }
+                    Text(
+                        text = if (isLoggedIn) "PROFIL" else "LOGIN",
+                        color = if (isLoggedIn) JarvisEmerald else JarvisCyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
 
             // New Conversation Button
             Button(

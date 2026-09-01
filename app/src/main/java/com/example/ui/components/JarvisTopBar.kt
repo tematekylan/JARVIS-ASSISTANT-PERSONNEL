@@ -50,6 +50,9 @@ import com.example.ui.theme.JarvisTextMuted
 import com.example.ui.theme.JarvisTextPrimary
 import com.example.ui.theme.JarvisTextSecondary
 
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
+
 enum class JarvisScreen {
     CHAT,
     COMMAND_CENTER,
@@ -64,6 +67,10 @@ fun JarvisTopBar(
     onNavigate: (JarvisScreen) -> Unit,
     onNewChat: () -> Unit,
     isDemoMode: Boolean,
+    userName: String = "Sir",
+    isLoggedIn: Boolean = false,
+    authProvider: String = "guest",
+    onOpenAuth: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     Surface(
@@ -81,7 +88,7 @@ fun JarvisTopBar(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp)
+                .padding(horizontal = 14.dp, vertical = 8.dp)
         ) {
             // Top Title & Status Row
             Row(
@@ -128,31 +135,73 @@ fun JarvisTopBar(
                     }
                 }
 
-                // Right: New Chat Button
-                IconButton(
-                    onClick = onNewChat,
-                    modifier = Modifier
-                        .size(36.dp)
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(JarvisBgCard)
-                        .border(1.dp, JarvisBorderGlow, RoundedCornerShape(8.dp))
-                        .testTag("btn_new_chat")
+                // Right: User Profile Chip & New Chat Button
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "New Conversation",
-                        tint = JarvisCyan,
-                        modifier = Modifier.size(18.dp)
-                    )
+                    // Profile / Auth Button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isLoggedIn) JarvisEmerald.copy(alpha = 0.15f) else JarvisCyan.copy(alpha = 0.1f))
+                            .border(
+                                1.dp,
+                                if (isLoggedIn) JarvisEmerald.copy(alpha = 0.6f) else JarvisBorderGlow,
+                                RoundedCornerShape(8.dp)
+                            )
+                            .clickable { onOpenAuth() }
+                            .padding(horizontal = 8.dp, vertical = 6.dp)
+                            .testTag("btn_top_auth_profile")
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(6.dp)
+                                    .clip(CircleShape)
+                                    .background(if (isLoggedIn) JarvisEmerald else JarvisAmber)
+                            )
+                            Text(
+                                text = if (isLoggedIn) userName.take(10).uppercase() else "LOGIN",
+                                color = if (isLoggedIn) JarvisEmerald else JarvisCyanGlow,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    // New Chat Button
+                    IconButton(
+                        onClick = onNewChat,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(JarvisBgCard)
+                            .border(1.dp, JarvisBorderGlow, RoundedCornerShape(8.dp))
+                            .testTag("btn_new_chat")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "New Conversation",
+                            tint = JarvisCyan,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.padding(top = 10.dp))
+            Spacer(modifier = Modifier.padding(top = 8.dp))
 
-            // Navigation Tabs Row
+            // Navigation Tabs Row (Scrollable to prevent clipping)
             Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 NavTabButton(
                     title = "Chat",

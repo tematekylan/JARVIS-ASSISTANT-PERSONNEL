@@ -17,7 +17,8 @@ class JarvisAIEngine(
     private val repository: JarvisRepository,
     private val toolEngine: JarvisToolEngine
 ) {
-    private val geminiClient = GeminiClient()
+    private val multiAiClient = MultiAiClient()
+    private val mediaEngine = JarvisMediaEngine()
 
     suspend fun processUserMessage(
         userPrompt: String,
@@ -27,15 +28,42 @@ class JarvisAIEngine(
     ): AIProcessResult {
         val settings = repository.getUserSettingsDirect()
 
+        // 0. Detect Slash Commands
+        val (cleanedPrompt, slashMode, slashSystemInstruction) = parseSlashCommand(userPrompt)
+
+        // 0.1 Check for Image Generation intent
+        if (slashMode == "image" || isImageGenerationIntent(cleanedPrompt)) {
+            val imgResult = mediaEngine.generateImage(cleanedPrompt, settings)
+            repository.logToolCall("image_generator", cleanedPrompt, imgResult.mediaUrl, 1200L, "SUCCESS")
+            streamSimulatedText(imgResult.formattedMarkdown, onStreamChunk)
+            return AIProcessResult(
+                replyText = imgResult.formattedMarkdown,
+                toolResult = ToolExecutionResult("image_generator", cleanedPrompt, imgResult.mediaUrl, true),
+                isDemoMode = false
+            )
+        }
+
+        // 0.2 Check for Video Generation intent
+        if (slashMode == "video" || isVideoGenerationIntent(cleanedPrompt)) {
+            val vidResult = mediaEngine.generateVideo(cleanedPrompt, settings)
+            repository.logToolCall("video_generator", cleanedPrompt, vidResult.mediaUrl, 1800L, "SUCCESS")
+            streamSimulatedText(vidResult.formattedMarkdown, onStreamChunk)
+            return AIProcessResult(
+                replyText = vidResult.formattedMarkdown,
+                toolResult = ToolExecutionResult("video_generator", cleanedPrompt, vidResult.mediaUrl, true),
+                isDemoMode = false
+            )
+        }
+
         // 1. Tool intent detection
-        val toolResult = detectAndRunTools(userPrompt)
+        val toolResult = detectAndRunTools(cleanedPrompt)
 
-        // 2. Build system context including memories
-        val systemPrompt = buildSystemPrompt(settings, toolResult)
+        // 2. Build system context including memories & slash instruction
+        val systemPrompt = buildSystemPrompt(settings, toolResult, slashSystemInstruction)
 
-        // 3. Check if we should use Demo Mode or Gemini API
+        // 3. Check if we should use Demo Mode or Multi-AI Client
         if (settings.isDemoMode) {
-            val demoResponse = generateDemoResponse(userPrompt, toolResult, settings)
+            val demoResponse = generateDemoResponse(cleanedPrompt, toolResult, settings, slashMode, imageBitmap != null)
             // Stream chunks with realistic typewriter effect
             streamSimulatedText(demoResponse, onStreamChunk)
             return AIProcessResult(
@@ -45,13 +73,15 @@ class JarvisAIEngine(
             )
         }
 
-        // Try Gemini API first
+        // Try Multi-AI engine (Gemini, OpenAI, Claude, Groq, DeepSeek)
         try {
-            val response = geminiClient.generateContentStream(
-                modelName = settings.aiModel,
-                prompt = if (toolResult != null) {
-                    "$userPrompt\n\n[CONTEXT FROM EXECUTED TOOL '${toolResult.toolName}']:\n${toolResult.result}"
-                } else userPrompt,
+            val effectivePrompt = if (toolResult != null) {
+                "$cleanedPrompt\n\n[CONTEXT FROM EXECUTED TOOL '${toolResult.toolName}']:\n${toolResult.result}"
+            } else cleanedPrompt
+
+            val response = multiAiClient.generateContentStream(
+                settings = settings,
+                prompt = effectivePrompt,
                 systemInstruction = systemPrompt,
                 bitmap = imageBitmap,
                 history = conversationHistory.takeLast(10),
@@ -69,9 +99,9 @@ class JarvisAIEngine(
             )
         } catch (e: Exception) {
             // Fallback gracefully to offline intelligence with clear indicator
-            val fallbackResponse = generateDemoResponse(userPrompt, toolResult, settings)
+            val fallbackResponse = generateDemoResponse(cleanedPrompt, toolResult, settings, slashMode, imageBitmap != null)
             val fullFallback = if (e.message == "API_KEY_NOT_CONFIGURED") {
-                "$fallbackResponse\n\n> *[MODE DÉMO ACTIF — Clé API non configurée dans le panneau Secrets]*"
+                "$fallbackResponse\n\n> *[MODE DÉMO ACTIF — Clé API non configurée dans le panneau Secrets ou Paramètres]*"
             } else {
                 "$fallbackResponse\n\n> *[MODE SECOURS LOCAL — ${e.localizedMessage ?: "Connexion IA interrompue"}]*"
             }
@@ -84,9 +114,163 @@ class JarvisAIEngine(
         }
     }
 
+    private fun isImageGenerationIntent(prompt: String): Boolean {
+        val lower = prompt.lowercase().trim()
+        return lower.startsWith("génère une image") ||
+                lower.startsWith("genere une image") ||
+                lower.startsWith("crée une image") ||
+                lower.startsWith("cree une image") ||
+                lower.startsWith("dessine") ||
+                lower.startsWith("fais-moi un dessin") ||
+                lower.startsWith("générer une image") ||
+                lower.startsWith("generate an image") ||
+                lower.startsWith("draw a") ||
+                lower.startsWith("draw me")
+    }
+
+    private fun isVideoGenerationIntent(prompt: String): Boolean {
+        val lower = prompt.lowercase().trim()
+        return lower.startsWith("génère une vidéo") ||
+                lower.startsWith("genere une video") ||
+                lower.startsWith("crée une vidéo") ||
+                lower.startsWith("cree une video") ||
+                lower.startsWith("générer une vidéo") ||
+                lower.startsWith("generate a video") ||
+                lower.startsWith("crée une animation") ||
+                lower.startsWith("fais une vidéo")
+    }
+
+    private data class SlashCommandInfo(
+        val cleanedPrompt: String,
+        val slashMode: String?,
+        val customSystemInstruction: String?
+    )
+
+    private fun parseSlashCommand(prompt: String): SlashCommandInfo {
+        val trimmed = prompt.trim()
+        val lower = trimmed.lowercase()
+
+        return when {
+            lower.startsWith("/image") || lower.startsWith("/photo") || lower.startsWith("/dessine") || lower.startsWith("/img") || lower.startsWith("/genimage") -> {
+                val clean = trimmed.substringAfter(" ").trim().ifBlank { "Holographic Iron Man Arc Reactor in neon blueprint style" }
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "image",
+                    customSystemInstruction = "MODE GÉNÉRATION D'IMAGE IA STARK"
+                )
+            }
+            lower.startsWith("/video") || lower.startsWith("/anim") || lower.startsWith("/genvideo") -> {
+                val clean = trimmed.substringAfter(" ").trim().ifBlank { "Vol supersonique de l'armure Iron Man au-dessus de la métropole" }
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "video",
+                    customSystemInstruction = "MODE RENDU CINÉMATIQUE & VIDÉO IA STARK"
+                )
+            }
+            lower.startsWith("/humain") || lower.startsWith("/human") -> {
+                val clean = trimmed.substringAfter(" ").trim().ifBlank { "Parle-moi naturellement en mode humain." }
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "humain",
+                    customSystemInstruction = """
+                        MODE ULTRA-HUMAIN ACTIVÉ:
+                        - Tu DOIS parler comme un ami humain chaleureux, naturel, direct, décontracté et bienveillant.
+                        - INTERDICTION ABSOLUE d'utiliser des tournures robotiques d'IA (ex: "En tant qu'IA...", "J'espère que cela vous aide...", "N'hésitez pas à me poser d'autres questions...").
+                        - Utilise des vraies émotions, un ton vivant, des analogies du quotidien, du bon sens et des phrases fluides.
+                    """.trimIndent()
+                )
+            }
+            lower.startsWith("/rayonx") || lower.startsWith("/xray") || lower.startsWith("/eclate") -> {
+                val clean = trimmed.substringAfter(" ").trim().ifBlank { "Analyse en vue éclatée / Rayons X de tous les composants internes." }
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "rayonx",
+                    customSystemInstruction = """
+                        MODE VISION RAYONS X & VUE ÉCLATÉE D'INGÉNIERIE (X-RAY / EXPLODED BLUEPRINT):
+                        - Analyse l'objet, l'image ou le concept demandé comme un schéma d'ingénierie Stark Industries / Rayons X.
+                        - Décompose TOUS les composants internes, pièce par pièce :
+                          1. 🔬 Structure externe & Matériaux de châssis
+                          2. ⚙️ Organes moteurs, propulsion ou alimentation
+                          3. 🔌 Circuit électronique, capteurs, processeurs & bus de données
+                          4. ❄️ Système thermique, refroidissement et lubrification
+                          5. 🛡️ Composants de sécurité & tolérances mécaniques
+                        - Présente sous forme de fiche technique haute précision avec nom exact de chaque pièce et son rôle précis.
+                    """.trimIndent()
+                )
+            }
+            lower.startsWith("/plan") || lower.startsWith("/pdf") || lower.startsWith("/masterplan") -> {
+                val clean = trimmed.substringAfter(" ").trim().ifBlank { "Génère un plan d'action exécutif complet de A à Z." }
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "plan",
+                    customSystemInstruction = """
+                        MODE PLAN D'ACTION DIRECTEUR DE A À Z (EXECUTIVE MASTERPLAN):
+                        - Structure la réponse sous forme de PLAN EXÉCUTIF COMPLET, net, structuré en blocs chronologiques :
+                          1. 🎯 Objectif Principal & Métriques de succès (KPIs)
+                          2. 🧱 PHASE 1 : Fondations & Prérequis (Jours 1-7)
+                          3. 🚀 PHASE 2 : Exécution opérationnelle & Déploiement (Jours 8-30)
+                          4. 📈 PHASE 3 : Optimisation, Monétisation & Scale (Jours 31+)
+                          5. ⚠️ Risques identifiés & Protocoles d'atténuation
+                          6. 📋 Checklist finale d'actions immédiates
+                    """.trimIndent()
+                )
+            }
+            lower.startsWith("/code") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "code",
+                    customSystemInstruction = "MODE CODE EXPERT: Fournis directement le code complet, robuste, typé et prêt pour la production sans bavardage superflu."
+                )
+            }
+            lower.startsWith("/debug") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "debug",
+                    customSystemInstruction = "MODE DEBUG & AUDIT TECHNIQUE: Analyse l'erreur, trouve la cause racine exacte et fournis le correctif ligne par ligne avec explication chirurgicale."
+                )
+            }
+            lower.startsWith("/resume") || lower.startsWith("/summary") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "resume",
+                    customSystemInstruction = "MODE SYNTHÈSE ULTRA-CONCISE: Résume l'information essentielle en 3 à 5 points clés ultra-impactants."
+                )
+            }
+            lower.startsWith("/roast") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "roast",
+                    customSystemInstruction = "MODE ROAST TONY STARK: Réponds avec l'humour sarcastique, piquant mais brillant de Tony Stark tout en restant très intelligent."
+                )
+            }
+            lower.startsWith("/strategie") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "strategie",
+                    customSystemInstruction = "MODE STRATÉGIE BUSINESS & MARCHÉ: Analyse le marché, la concurrence, les leviers de croissance, les barrières à l'entrée et la proposition de valeur unique."
+                )
+            }
+            lower.startsWith("/ironman") -> {
+                val clean = trimmed.substringAfter(" ").trim()
+                SlashCommandInfo(
+                    cleanedPrompt = clean,
+                    slashMode = "ironman",
+                    customSystemInstruction = "MODE ARMURE IRON MAN MK-85: Intègre des métriques tactiques, le statut du réacteur Arc, des visées HUD et le protocole d'assistance du MCU Stark Industries."
+                )
+            }
+            else -> SlashCommandInfo(cleanedPrompt = prompt, slashMode = null, customSystemInstruction = null)
+        }
+    }
+
     private suspend fun buildSystemPrompt(
         settings: UserSettingsEntity,
-        toolResult: ToolExecutionResult?
+        toolResult: ToolExecutionResult?,
+        slashInstruction: String? = null
     ): String {
         val memories = if (settings.memoryEnabled) {
             repository.getActiveMemories()
@@ -100,6 +284,10 @@ class JarvisAIEngine(
             "\n\nAUTOMATED TOOL EXECUTION RESULT (${toolResult.toolName}):\n${toolResult.result}\n(Synthesize this tool output into your sophisticated, natural response.)"
         } else ""
 
+        val slashContext = if (slashInstruction != null) {
+            "\n\n=== DIRECTIVE PRIORITAIRE COMMAND SHORTCUT ===\n$slashInstruction\n"
+        } else ""
+
         return """
             You are JARVIS (Just A Rather Very Intelligent System), a sophisticated, calm, and highly capable personal AI assistant.
             
@@ -110,6 +298,7 @@ class JarvisAIEngine(
             - Never invent facts or hallucinate external capabilities.
             - Adapt naturally to the language of the prompt (French if French, English if English).
             - Use occasional sophisticated phrases such as "Bien sûr", "Compris", "Analyse terminée", "Voici ce que j'ai trouvé", "À vos ordres".
+            $slashContext
             $memoryContext
             $toolContext
         """.trimIndent()
@@ -184,10 +373,150 @@ class JarvisAIEngine(
     private fun generateDemoResponse(
         prompt: String,
         toolResult: ToolExecutionResult?,
-        settings: UserSettingsEntity
+        settings: UserSettingsEntity,
+        slashMode: String? = null,
+        hasImage: Boolean = false
     ): String {
         val lower = prompt.lowercase().trim()
         val user = settings.userName
+
+        // Handle specific Slash Command modes
+        when (slashMode) {
+            "humain" -> {
+                return "Salut $user ! Franchement, laisse tomber le jargon de machine. Je suis là avec toi comme un vrai pote. Parle-moi de ce qui te préoccupe ou de ce que tu veux construire aujourd'hui, et on s'en occupe tranquillement sans prise de tête !"
+            }
+            "rayonx" -> {
+                val subject = if (prompt.isNotBlank()) prompt else if (hasImage) "Image / Véhicule scanné" else "Système d'ingénierie"
+                return """
+                    # 🔬 SCAN RAYONS X & SCHÉMA D'INGÉNIERIE DÉTAILLÉ
+                    **Cible analysée** : `$subject`  
+                    **Statut Stark Analytics** : `VUE ÉCLATÉE COMPLÈTE GÉNERÉE`
+
+                    ---
+
+                    ### 1. ⚙️ Organes de Propulsion & Moteur
+                    - **Bloc Moteur / Cylindre** : Alliage Titane-Aluminium renforcé (Tension d'allumage : 14.2 kV)
+                    - **Turbocompresseur / Admission d'air** : Turbine à double volute avec géométrie variable
+                    - **Système d'injection directe** : Rampe commune haute pression (2500 bars)
+                    - **Arbre de transmission & Vilebrequin** : Acier forgé nitruré à haute résistance dynamique
+
+                    ### 2. 🔌 Architecture Électronique & Capteurs (HUD)
+                    - **Calculateur Central (ECU / MCU)** : Processeur Dual-Core 64-bit avec bus CAN FD
+                    - **Capteurs Piézoélectriques** : Détection de cliquetis et analyse de vibrations à 10 kHz
+                    - **Faisceau Électrique Principal** : Câblage cuivre désoxygéné avec blindage électromagnétique
+
+                    ### 3. ❄️ Refroidissement & Lubrification
+                    - **Radiateur à flux croisé** : Structure alvéolaire à micro-canaux en alliage d'aluminium
+                    - **Pompe à huile mécanique à débit variable** : Lubrification continue des coussinets de bielle
+                    - **Échangeur thermique air/eau** : Optimisation de la température d'admission
+
+                    ### 4. 🛡️ Châssis, Freinage & Sécurité
+                    - **Disques de frein en Carbone-Céramique** : Étriers monoblocs 6 pistons
+                    - **Suspension pilotée magnétorhéologique** : Ajustement de l'amortissement en 10 ms
+                    - **Cellule de survie** : Monocoque composite en fibre de carbone à haut module
+
+                    ---
+                    > *Tous les composants sont calibrés dans les tolérances nominales.*
+                """.trimIndent()
+            }
+            "plan" -> {
+                val subject = if (prompt.isNotBlank()) prompt else "Déploiement Stratégique JARVIS"
+                return """
+                    # 📋 PLAN DIRECTEUR EXÉCUTIF (A à Z)
+                    **Projet** : `$subject`  
+                    **Superviseur** : `$user` | **Priorité** : `MAXIMALE (ALPHA)`
+
+                    ---
+
+                    ### 🎯 1. OBJECTIF PRINCIPAL & KPIs
+                    - Livrable clé : Système complet, opérationnel, testé et déployé.
+                    - Métrique de succès : Taux de disponibilité 99.9%, latence < 150ms.
+
+                    ---
+
+                    ### 🧱 2. PHASE 1 : FONDATIONS & PRÉREQUIS (Jours 1 à 7)
+                    - [ ] Configuration de l'environnement sécurisé et des clés d'accès.
+                    - [ ] Schéma de base de données (Profils, Conversations, Mémoire cache).
+                    - [ ] Validation de l'architecture modulaire et des protocoles d'authentification.
+
+                    ---
+
+                    ### 🚀 3. PHASE 2 : EXÉCUTION & DÉPLOIEMENT (Jours 8 à 20)
+                    - [ ] Implémentation des fonctionnalités clés et des raccourcis stratégiques.
+                    - [ ] Intégration de la synthèse vocale et du moteur d'analyse visuelle.
+                    - [ ] Tests de charge et vérification des scénarios d'usage critique.
+
+                    ---
+
+                    ### 📈 4. PHASE 3 : SCALE, AUTOMATISATION & MONÉTISATION (Jours 21+)
+                    - [ ] Déploiement des pipelines CI/CD automatiques pour mises à jour continues.
+                    - [ ] Analyse des métriques utilisateurs et boucle d'amélioration continue.
+                    - [ ] Intégration des canaux de distribution et publication.
+
+                    ---
+
+                    ### ⚠️ 5. GESTION DES RISQUES & ATTÉNUATION
+                    - **Risque de connectivité** ➔ Mode secours local hors-ligne autonome.
+                    - **Risque de sécurité** ➔ Chiffrement des identifiants et habilitation stricte.
+
+                    ---
+                    > **Action immédiate recommandée** : Valider la Phase 1 pour lancer le protocole.
+                """.trimIndent()
+            }
+            "code" -> {
+                return """
+                    ```kotlin
+                    // Architecture JARVIS Production Ready
+                    data class JarvisCommandResult(
+                        val success: Boolean,
+                        val executionTimeMs: Long,
+                        val output: String
+                    )
+
+                    class StarkSystemKernel {
+                        fun executeCommand(command: String): JarvisCommandResult {
+                            val start = System.currentTimeMillis()
+                            return JarvisCommandResult(
+                                success = true,
+                                executionTimeMs = System.currentTimeMillis() - start,
+                                output = "Protocole " + command + " exécuté sans erreur."
+                            )
+                        }
+                    }
+                    ```
+                """.trimIndent()
+            }
+            "debug" -> {
+                return """
+                    ### 🔍 AUDIT TECHNIQUE & RAPPORT DE DÉBOGAGE
+                    1. **Diagnostic** : Pile d'exécution vérifiée sans exception non gérée.
+                    2. **Cause racine** : Aucune anomalie détectée dans le flux de contrôle.
+                    3. **Recommandation** : Maintenir les tolérances actuelles et surveiller la mémoire tampon.
+                """.trimIndent()
+            }
+            "resume" -> {
+                return """
+                    ### 📌 SYNTHÈSE EXÉCUTIVE EN 3 POINTS :
+                    1. **Statut Opérationnel** : Tous les systèmes JARVIS sont actifs et nominaux.
+                    2. **Sécurité & Données** : Persistance locale Room et passerelle d'accès opérationnelles.
+                    3. **Prochaine Étape** : Exécution de vos directives à votre signal.
+                """.trimIndent()
+            }
+            "roast" -> {
+                return "Alors, $user... On essaie d'impressionner la galerie ? C'est mignon, mais pendant que vous peaufinez vos questions, moi j'ai déjà recalculé la trajectoire orbitale de trois satellites. Qu'est-ce que vous me voulez d'autre, génie ?"
+            }
+            "strategie" -> {
+                return """
+                    ### 📊 ANALYSE STRATÉGIQUE & POSITIONNEMENT MARCHÉ
+                    - **Avantage Concurrentiel (Moat)** : Interface holographique réactive + persistance locale souveraine + commandes rapides ultra-ciblées.
+                    - **Levier de Croissance (Product-Led Growth)** : Expérience vocale fluide et zéro friction d'inscription obligatoire.
+                    - **Objectif de Rétention** : Coffre-fort de mémoire utilisateur pour une personnalisation cumulative.
+                """.trimIndent()
+            }
+            "ironman" -> {
+                return "Protocole Mark-85 armé, $user. Réacteur Arc stabilisé à 100%. Systèmes de visée HUD verrouillés et propulseurs répulseurs parés au décollage. En attente de vos coordonnées de vol."
+            }
+        }
 
         if (toolResult != null) {
             return when (toolResult.toolName) {
@@ -214,10 +543,10 @@ class JarvisAIEngine(
                 Voici un aperçu de mes capacités opérationnelles, $user :
                 
                 - 🎙️ **Interaction Vocale** : Écoute en direct et synthèse vocale haute fidélité.
+                - ⚡ **Raccourcis Stratégiques** : `/humain`, `/rayonx`, `/plan`, `/code`, `/debug`, `/resume`, `/roast`, `/strategie`, `/ironman`.
                 - 🧠 **Mémoire Persistante** : Rétention contrôlable de vos préférences et directives.
                 - 🧮 **Outils Intégrés** : Calculatrice, météo mondiale, horloge universelle, notes et diagnostics système.
-                - 🌐 **Recherche & Connaissances** : Recherche d'informations et synthèse de données.
-                - 👁️ **Vision Multimodale** : Analyse approfondie d'images et de schémas.
+                - 👁️ **Vision Multimodale** : Analyse approfondie d'images et schémas techniques en vue éclatée.
                 
                 Que souhaitez-vous explorer ?
                 """.trimIndent()

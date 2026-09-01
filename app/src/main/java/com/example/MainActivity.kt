@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.core.content.ContextCompat
 import com.example.ui.MainViewModel
+import com.example.ui.components.JarvisAuthDialog
 import com.example.ui.components.JarvisDrawerContent
 import com.example.ui.components.JarvisScreen
 import com.example.ui.components.JarvisTopBar
@@ -60,6 +61,9 @@ fun JarvisApp(viewModel: MainViewModel) {
     val userSettings by viewModel.userSettings.collectAsState()
     val conversations by viewModel.conversations.collectAsState()
     val currentConversation by viewModel.currentConversation.collectAsState()
+    val isAuthDialogVisible by viewModel.isAuthDialogVisible.collectAsState()
+
+    val currentSettings = userSettings ?: com.example.data.entity.UserSettingsEntity()
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
@@ -73,6 +77,30 @@ fun JarvisApp(viewModel: MainViewModel) {
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    if (isAuthDialogVisible) {
+        JarvisAuthDialog(
+            onDismiss = { viewModel.hideAuthDialog() },
+            onSignInGoogle = { name, email ->
+                viewModel.signInWithGoogle(name, email)
+            },
+            onLoginEmail = { email, password, onResult ->
+                viewModel.loginWithEmail(email, password, onResult)
+            },
+            onRegisterEmail = { email, password, name, onResult ->
+                viewModel.registerWithEmail(email, password, name, onResult)
+            },
+            onSignInPhone = { phone, name, onResult ->
+                viewModel.registerOrLoginWithPhone(phone, name, onResult)
+            },
+            currentUserName = currentSettings.userName,
+            currentUserEmail = currentSettings.userEmail,
+            currentUserPhone = currentSettings.userPhone,
+            isLoggedIn = currentSettings.isLoggedIn,
+            authProvider = currentSettings.authProvider,
+            onSignOut = { viewModel.signOut() }
+        )
     }
 
     ModalNavigationDrawer(
@@ -98,6 +126,15 @@ fun JarvisApp(viewModel: MainViewModel) {
                     },
                     onTogglePin = { conv ->
                         viewModel.togglePinConversation(conv)
+                    },
+                    userName = currentSettings.userName,
+                    userEmail = currentSettings.userEmail,
+                    userPhone = currentSettings.userPhone,
+                    isLoggedIn = currentSettings.isLoggedIn,
+                    authProvider = currentSettings.authProvider,
+                    onOpenAuth = {
+                        scope.launch { drawerState.close() }
+                        viewModel.showAuthDialog()
                     }
                 )
             }
@@ -112,7 +149,11 @@ fun JarvisApp(viewModel: MainViewModel) {
                         viewModel.startNewConversation()
                         viewModel.navigateTo(JarvisScreen.CHAT)
                     },
-                    isDemoMode = userSettings?.isDemoMode == true
+                    isDemoMode = currentSettings.isDemoMode,
+                    userName = currentSettings.userName,
+                    isLoggedIn = currentSettings.isLoggedIn,
+                    authProvider = currentSettings.authProvider,
+                    onOpenAuth = { viewModel.showAuthDialog() }
                 )
             },
             containerColor = JarvisBgVoid,

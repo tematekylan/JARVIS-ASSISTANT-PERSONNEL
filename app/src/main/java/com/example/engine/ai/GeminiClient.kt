@@ -24,8 +24,20 @@ class GeminiClient {
 
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
+    private fun normalizeModelName(rawModel: String): String {
+        val lower = rawModel.lowercase().trim()
+        return when {
+            lower.contains("pro") -> "gemini-2.5-pro"
+            lower.contains("2.0") -> "gemini-2.0-flash"
+            lower.contains("1.5") && lower.contains("flash") -> "gemini-1.5-flash"
+            lower.contains("1.5") && lower.contains("pro") -> "gemini-1.5-pro"
+            // For flash, images, 2.1, 2.5, 3.5, 3.7 or default -> gemini-2.5-flash
+            else -> "gemini-2.5-flash"
+        }
+    }
+
     suspend fun generateContentStream(
-        modelName: String = "gemini-3.5-flash",
+        modelName: String = "gemini-2.5-flash",
         prompt: String,
         systemInstruction: String? = null,
         bitmap: Bitmap? = null,
@@ -90,10 +102,36 @@ class GeminiClient {
         genConfig.put("temperature", 0.7)
         requestJson.put("generationConfig", genConfig)
 
-        val targetModel = if (modelName.isBlank()) "gemini-3.5-flash" else modelName
-        val url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:streamGenerateContent?key=$apiKey&alt=sse"
-
+        val normalizedModel = normalizeModelName(modelName)
         val requestBody = requestJson.toString().toRequestBody(jsonMediaType)
+
+        try {
+            executeStreamRequest(normalizedModel, apiKey, requestBody, onChunkReceived)
+        } catch (e: Exception) {
+            // If primary model failed (e.g. 404 on preview endpoint), fallback to standard gemini-2.5-flash or gemini-1.5-flash
+            if (normalizedModel != "gemini-2.5-flash") {
+                try {
+                    executeStreamRequest("gemini-2.5-flash", apiKey, requestBody, onChunkReceived)
+                } catch (_: Exception) {
+                    executeStreamRequest("gemini-1.5-flash", apiKey, requestBody, onChunkReceived)
+                }
+            } else {
+                try {
+                    executeStreamRequest("gemini-1.5-flash", apiKey, requestBody, onChunkReceived)
+                } catch (_: Exception) {
+                    throw e
+                }
+            }
+        }
+    }
+
+    private suspend fun executeStreamRequest(
+        targetModel: String,
+        apiKey: String,
+        requestBody: okhttp3.RequestBody,
+        onChunkReceived: (String) -> Unit
+    ): String = withContext(Dispatchers.IO) {
+        val url = "https://generativelanguage.googleapis.com/v1beta/models/$targetModel:streamGenerateContent?key=$apiKey&alt=sse"
         val request = Request.Builder()
             .url(url)
             .post(requestBody)

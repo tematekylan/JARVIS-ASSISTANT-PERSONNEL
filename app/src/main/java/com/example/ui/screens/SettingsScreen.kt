@@ -88,6 +88,14 @@ fun SettingsScreen(
     var demoMode by remember(currentSettings.isDemoMode) { mutableStateOf(currentSettings.isDemoMode) }
     var personality by remember(currentSettings.personalityTone) { mutableStateOf(currentSettings.personalityTone) }
 
+    var aiProvider by remember(currentSettings.activeAiProvider) { mutableStateOf(currentSettings.activeAiProvider) }
+    var openaiKey by remember(currentSettings.customOpenAiApiKey) { mutableStateOf(currentSettings.customOpenAiApiKey) }
+    var claudeKey by remember(currentSettings.customClaudeApiKey) { mutableStateOf(currentSettings.customClaudeApiKey) }
+    var groqKey by remember(currentSettings.customGroqApiKey) { mutableStateOf(currentSettings.customGroqApiKey) }
+    var deepseekKey by remember(currentSettings.customDeepSeekApiKey) { mutableStateOf(currentSettings.customDeepSeekApiKey) }
+    var customGeminiKey by remember(currentSettings.customGeminiApiKey) { mutableStateOf(currentSettings.customGeminiApiKey) }
+    var keySaveFeedback by remember { mutableStateOf<String?>(null) }
+
     var showFactoryResetDialog by remember { mutableStateOf(false) }
 
     LazyColumn(
@@ -107,6 +115,113 @@ fun SettingsScreen(
                 fontFamily = FontFamily.Monospace,
                 letterSpacing = 1.5.sp
             )
+        }
+
+        // Section 0: User Profile & Security Clearance Authentication
+        item {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (currentSettings.isLoggedIn) JarvisEmerald.copy(alpha = 0.08f) else JarvisBgCard
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (currentSettings.isLoggedIn) JarvisEmerald.copy(alpha = 0.5f) else JarvisBorderGlow
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Box(
+                                modifier = Modifier
+                                    .size(34.dp)
+                                    .clip(CircleShape)
+                                    .background(if (currentSettings.isLoggedIn) JarvisEmerald.copy(alpha = 0.2f) else JarvisCyan.copy(alpha = 0.15f))
+                                    .border(1.dp, if (currentSettings.isLoggedIn) JarvisEmerald else JarvisCyan, CircleShape),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = currentSettings.userName.take(1).uppercase(),
+                                    color = if (currentSettings.isLoggedIn) JarvisEmerald else JarvisCyan,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                            Column {
+                                Text(
+                                    text = currentSettings.userName,
+                                    color = JarvisTextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                                Text(
+                                    text = if (currentSettings.isLoggedIn) "AUTH: ${currentSettings.authProvider.uppercase()}" else "MODE INVITÉ",
+                                    color = if (currentSettings.isLoggedIn) JarvisEmerald else JarvisAmber,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+
+                        Button(
+                            onClick = { viewModel.showAuthDialog() },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (currentSettings.isLoggedIn) JarvisBgSurface else JarvisCyan
+                            ),
+                            shape = RoundedCornerShape(8.dp),
+                            border = if (currentSettings.isLoggedIn) androidx.compose.foundation.BorderStroke(1.dp, JarvisEmerald) else null
+                        ) {
+                            Text(
+                                text = if (currentSettings.isLoggedIn) "GÉRER" else "CONNEXION",
+                                color = if (currentSettings.isLoggedIn) JarvisEmerald else JarvisBgVoid,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    if (currentSettings.isLoggedIn) {
+                        if (currentSettings.userEmail.isNotBlank()) {
+                            Text(
+                                text = "Email associé : ${currentSettings.userEmail}",
+                                color = JarvisCyanGlow,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        if (currentSettings.userPhone.isNotBlank()) {
+                            Text(
+                                text = "Téléphone lié : ${currentSettings.userPhone}",
+                                color = JarvisCyanGlow,
+                                fontSize = 11.sp,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Text(
+                            text = "Niveau d'habilitation : ${currentSettings.securityClearanceLevel}",
+                            color = JarvisTextMuted,
+                            fontSize = 10.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    } else {
+                        Text(
+                            text = "Connectez votre compte Google, Email ou Téléphone pour sécuriser vos préférences et synchroniser vos données (100% gratuit, sans carte requise).",
+                            color = JarvisTextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 14.sp
+                        )
+                    }
+                }
+            }
         }
 
         // Section 1: User Identity & Callsign
@@ -166,32 +281,42 @@ fun SettingsScreen(
                     )
 
                     ModelOptionRow(
-                        title = "Gemini 3.5 Flash (Recommandé)",
-                        subtitle = "Rapidité extrême, raisonnement multimodal & faible latence",
-                        isSelected = selectedModel == "gemini-3.5-flash",
+                        title = "Gemini 2.5 Flash (Recommandé • Vision & Texte)",
+                        subtitle = "Rapidité extrême, analyse d'images multimodale & très faible latence",
+                        isSelected = selectedModel == "gemini-2.5-flash",
                         onClick = {
-                            selectedModel = "gemini-3.5-flash"
-                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-3.5-flash"))
+                            selectedModel = "gemini-2.5-flash"
+                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-2.5-flash"))
                         }
                     )
 
                     ModelOptionRow(
-                        title = "Gemini 3.1 Pro",
-                        subtitle = "Raisonnement complexe avancé et synthèse approfondie",
-                        isSelected = selectedModel == "gemini-3.1-pro-preview",
+                        title = "Gemini 2.5 Pro (Raisonnement Complexe)",
+                        subtitle = "Capacités d'analyse approfondie, code expert et synthèse technique",
+                        isSelected = selectedModel == "gemini-2.5-pro",
                         onClick = {
-                            selectedModel = "gemini-3.1-pro-preview"
-                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-3.1-pro-preview"))
+                            selectedModel = "gemini-2.5-pro"
+                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-2.5-pro"))
                         }
                     )
 
                     ModelOptionRow(
-                        title = "Gemini 2.5 Flash Image",
-                        subtitle = "Optimisé pour la vision et l'analyse visuelle",
-                        isSelected = selectedModel == "gemini-2.5-flash-image",
+                        title = "Gemini 2.0 Flash (Ultra-Rapide)",
+                        subtitle = "Optimisé pour des réponses quasi-instantanées",
+                        isSelected = selectedModel == "gemini-2.0-flash",
                         onClick = {
-                            selectedModel = "gemini-2.5-flash-image"
-                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-2.5-flash-image"))
+                            selectedModel = "gemini-2.0-flash"
+                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-2.0-flash"))
+                        }
+                    )
+
+                    ModelOptionRow(
+                        title = "Gemini 1.5 Flash (Secours & Stabilité)",
+                        subtitle = "Modèle de secours fiable et éprouvé",
+                        isSelected = selectedModel == "gemini-1.5-flash",
+                        onClick = {
+                            selectedModel = "gemini-1.5-flash"
+                            viewModel.updateUserSettings(currentSettings.copy(aiModel = "gemini-1.5-flash"))
                         }
                     )
 
@@ -227,6 +352,219 @@ fun SettingsScreen(
                                 checkedTrackColor = JarvisAmber.copy(alpha = 0.3f)
                             ),
                             modifier = Modifier.testTag("switch_demo_mode")
+                        )
+                    }
+                }
+            }
+        }
+
+        // Section 2.5: Multi-AI Models & Custom API Keys (BYOK)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = JarvisBgCard),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "INTELLIGENCES ARTIFICIELLES & CLÉS API",
+                            color = JarvisCyanGlow,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(JarvisCyan.copy(alpha = 0.2f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "MULTI-LLM",
+                                color = JarvisCyan,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Vous pouvez connecter d'autres intelligences artificielles ou vos propres clés API pour débloquer OpenAI (GPT-4o), Anthropic (Claude 3.5), Groq (Llama 3.3) ou DeepSeek.",
+                        color = JarvisTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+
+                    // Active Provider Selector
+                    Text(
+                        text = "Fournisseur d'IA actif :",
+                        color = JarvisTextPrimary,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        listOf(
+                            "gemini" to "Gemini",
+                            "openai" to "OpenAI",
+                            "claude" to "Claude",
+                            "groq" to "Groq",
+                            "deepseek" to "DeepSeek"
+                        ).forEach { (provId, provName) ->
+                            val isSel = (aiProvider == provId)
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(if (isSel) JarvisCyan.copy(alpha = 0.25f) else JarvisBgSurface)
+                                    .border(1.dp, if (isSel) JarvisCyan else JarvisBorderGlow, RoundedCornerShape(6.dp))
+                                    .clickable {
+                                        aiProvider = provId
+                                        viewModel.updateUserSettings(currentSettings.copy(activeAiProvider = provId))
+                                    }
+                                    .padding(vertical = 8.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = provName,
+                                    color = if (isSel) JarvisCyanGlow else JarvisTextMuted,
+                                    fontSize = 10.sp,
+                                    fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Key fields
+                    OutlinedTextField(
+                        value = openaiKey,
+                        onValueChange = { newVal ->
+                            openaiKey = newVal
+                            keySaveFeedback = null
+                        },
+                        label = { Text("Clé API OpenAI (sk-...) • GPT-4o & DALL-E 3", color = JarvisTextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = claudeKey,
+                        onValueChange = { newVal ->
+                            claudeKey = newVal
+                            keySaveFeedback = null
+                        },
+                        label = { Text("Clé API Anthropic Claude (sk-ant-...)", color = JarvisTextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = groqKey,
+                        onValueChange = { newVal ->
+                            groqKey = newVal
+                            keySaveFeedback = null
+                        },
+                        label = { Text("Clé API Groq (gsk_...) • Llama 3.3 Ultra-Rapide", color = JarvisTextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = deepseekKey,
+                        onValueChange = { newVal ->
+                            deepseekKey = newVal
+                            keySaveFeedback = null
+                        },
+                        label = { Text("Clé API DeepSeek (sk-...) • V3 & R1", color = JarvisTextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    OutlinedTextField(
+                        value = customGeminiKey,
+                        onValueChange = { newVal ->
+                            customGeminiKey = newVal
+                            keySaveFeedback = null
+                        },
+                        label = { Text("Clé API Google Gemini Personnalisée (Optionnel)", color = JarvisTextMuted) },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        singleLine = true
+                    )
+
+                    keySaveFeedback?.let { feedback ->
+                        Text(
+                            text = feedback,
+                            color = JarvisEmerald,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                    }
+
+                    Button(
+                        onClick = {
+                            viewModel.updateUserSettings(
+                                currentSettings.copy(
+                                    activeAiProvider = aiProvider,
+                                    customOpenAiApiKey = openaiKey.trim(),
+                                    customClaudeApiKey = claudeKey.trim(),
+                                    customGroqApiKey = groqKey.trim(),
+                                    customDeepSeekApiKey = deepseekKey.trim(),
+                                    customGeminiApiKey = customGeminiKey.trim()
+                                )
+                            )
+                            keySaveFeedback = "✓ Clés API enregistrées et synchronisées avec JARVIS."
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan),
+                        shape = RoundedCornerShape(8.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Text(
+                            text = "ENREGISTRER LES CLÉS API",
+                            color = JarvisBgVoid,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
                         )
                     }
                 }
