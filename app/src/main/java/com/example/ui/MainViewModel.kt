@@ -35,6 +35,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val toolEngine = JarvisToolEngine(application, repository)
     val aiEngine = JarvisAIEngine(repository, toolEngine)
     val voiceEngine = JarvisVoiceEngine(application)
+    val incidentEngine = com.example.engine.incident.JarvisIncidentEngine(application, repository)
 
     private val _currentScreen = MutableStateFlow(JarvisScreen.CHAT)
     val currentScreen: StateFlow<JarvisScreen> = _currentScreen.asStateFlow()
@@ -68,6 +69,12 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     )
 
     val notes = repository.allNotes.stateIn(
+        viewModelScope,
+        SharingStarted.WhileSubscribed(5000),
+        emptyList()
+    )
+
+    val incidents = repository.allIncidents.stateIn(
         viewModelScope,
         SharingStarted.WhileSubscribed(5000),
         emptyList()
@@ -265,10 +272,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                     _streamingResponse.value = ""
                     _coreState.value = JarvisCoreState.ERROR
 
+                    val settings = repository.getUserSettingsDirect()
+                    val incident = incidentEngine.handleIncident(
+                        throwable = e,
+                        contextInfo = "Requête : $text",
+                        settings = settings
+                    )
+
+                    val targetEmail = settings.developerAlertEmail.ifBlank { "temateteddy@gmail.com" }
+                    val cleanErrorMessage = "J'ai rencontré une légère anomalie technique lors de l'exécution.\n\n" +
+                            "🚨 **Incident #${incident.incidentCode} enregistré**\n" +
+                            "📧 Diagnostic et code d'erreur transmis au développeur : `$targetEmail`\n" +
+                            "🤖 **Le Collège d'IA de résolution** a été réuni en urgence pour analyser la cause racine et préparer le patch de correction.\n\n" +
+                            "Consultez les détails et délibérations dans le **Command Center**."
+
                     val errMsg = MessageEntity(
                         conversationId = convId,
                         role = "assistant",
-                        content = "Une interruption de protocole est survenue : ${e.localizedMessage ?: "Erreur interne"}",
+                        content = cleanErrorMessage,
                         isError = true,
                         timestamp = System.currentTimeMillis()
                     )
@@ -289,15 +310,95 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    private val _isAnalyzingVoice = MutableStateFlow(false)
+    val isAnalyzingVoice: StateFlow<Boolean> = _isAnalyzingVoice.asStateFlow()
+
     fun speakText(text: String) {
         viewModelScope.launch {
             val settings = repository.getUserSettingsDirect()
+            val (rate, pitch) = if (settings.isVoicePersonaActive && settings.voicePersonaName.isNotBlank()) {
+                settings.voicePersonaRate to settings.voicePersonaPitch
+            } else {
+                settings.speechRate to settings.speechPitch
+            }
             voiceEngine.setSpeechParameters(
-                rate = settings.speechRate,
-                pitch = settings.speechPitch,
+                rate = rate,
+                pitch = pitch,
                 languageCode = settings.voiceLanguage
             )
             voiceEngine.speak(text)
+        }
+    }
+
+    fun analyzeAndCloneVoiceCharacter(characterQuery: String, onResult: (Boolean, String) -> Unit) {
+        val query = characterQuery.trim()
+        if (query.isBlank()) {
+            onResult(false, "Veuillez spécifier le nom d'un personnage, d'un artiste ou d'une célébrité.")
+            return
+        }
+
+        viewModelScope.launch {
+            _isAnalyzingVoice.value = true
+            try {
+                val currentSettings = repository.getUserSettingsDirect()
+                val profile = aiEngine.analyzeVoicePersona(query, currentSettings)
+
+                val updatedSettings = currentSettings.copy(
+                    voicePersonaName = profile.characterName,
+                    voicePersonaDescription = profile.timbreDescription,
+                    voicePersonaPitch = profile.pitch,
+                    voicePersonaRate = profile.rate,
+                    voicePersonaPromptStyle = profile.promptSystemInstruction,
+                    isVoicePersonaActive = true
+                )
+                repository.saveUserSettings(updatedSettings)
+
+                // Apply parameters to speech engine
+                voiceEngine.setSpeechParameters(
+                    rate = profile.rate,
+                    pitch = profile.pitch,
+                    languageCode = updatedSettings.voiceLanguage
+                )
+
+                // Speak test sample phrase with the newly cloned voice!
+                voiceEngine.speak(profile.catchphrase)
+
+                _isAnalyzingVoice.value = false
+                onResult(true, "Voix de « ${profile.characterName} » calibrée et activée avec succès !")
+            } catch (e: Exception) {
+                _isAnalyzingVoice.value = false
+                onResult(false, "Erreur lors de l'analyse vocale : ${e.localizedMessage ?: "Échec"}")
+            }
+        }
+    }
+
+    fun toggleVoicePersona(enabled: Boolean) {
+        viewModelScope.launch {
+            val currentSettings = repository.getUserSettingsDirect()
+            val updated = currentSettings.copy(isVoicePersonaActive = enabled)
+            repository.saveUserSettings(updated)
+            val (rate, pitch) = if (enabled && updated.voicePersonaName.isNotBlank()) {
+                updated.voicePersonaRate to updated.voicePersonaPitch
+            } else {
+                updated.speechRate to updated.speechPitch
+            }
+            voiceEngine.setSpeechParameters(rate = rate, pitch = pitch, languageCode = updated.voiceLanguage)
+        }
+    }
+
+    fun resetVoicePersona() {
+        viewModelScope.launch {
+            val currentSettings = repository.getUserSettingsDirect()
+            val updated = currentSettings.copy(
+                voicePersonaName = "",
+                voicePersonaDescription = "",
+                voicePersonaPitch = 1.0f,
+                voicePersonaRate = 1.0f,
+                voicePersonaPromptStyle = "",
+                isVoicePersonaActive = false
+            )
+            repository.saveUserSettings(updated)
+            voiceEngine.setSpeechParameters(rate = updated.speechRate, pitch = updated.speechPitch, languageCode = updated.voiceLanguage)
         }
     }
 
@@ -609,6 +710,40 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             _currentConversation.value = null
             _messages.value = emptyList()
             startNewConversation()
+        }
+    }
+
+    // Incident & AI Council Operations
+    fun triggerSimulatedIncident(onComplete: (com.example.data.entity.IncidentReportEntity) -> Unit) {
+        viewModelScope.launch {
+            val settings = repository.getUserSettingsDirect()
+            val simulatedException = IllegalStateException("Simulation d'exception contrôlée : Test de résilience de la passerelle de streaming")
+            val incident = incidentEngine.handleIncident(
+                throwable = simulatedException,
+                contextInfo = "Test déclenché manuellement depuis les Paramètres",
+                settings = settings
+            )
+            onComplete(incident)
+        }
+    }
+
+    fun deleteIncident(id: Long) {
+        viewModelScope.launch {
+            repository.deleteIncident(id)
+        }
+    }
+
+    fun clearAllIncidents() {
+        viewModelScope.launch {
+            repository.clearAllIncidents()
+        }
+    }
+
+    fun reConveneAiCouncil(incident: com.example.data.entity.IncidentReportEntity) {
+        viewModelScope.launch {
+            val settings = repository.getUserSettingsDirect()
+            val updated = incidentEngine.conveneAiResolutionCouncil(incident, settings)
+            repository.updateIncident(updated)
         }
     }
 

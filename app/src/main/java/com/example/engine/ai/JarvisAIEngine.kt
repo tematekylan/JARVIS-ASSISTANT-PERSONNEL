@@ -5,7 +5,19 @@ import com.example.data.JarvisRepository
 import com.example.data.entity.UserSettingsEntity
 import com.example.engine.tools.JarvisToolEngine
 import com.example.engine.tools.ToolExecutionResult
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
+
+data class VoicePersonaAnalysisResult(
+    val characterName: String,
+    val pitch: Float,
+    val rate: Float,
+    val timbreDescription: String,
+    val toneStyle: String,
+    val catchphrase: String,
+    val promptSystemInstruction: String
+)
 
 data class AIProcessResult(
     val replyText: String,
@@ -98,16 +110,12 @@ class JarvisAIEngine(
                 isDemoMode = false
             )
         } catch (e: Exception) {
-            // Fallback gracefully to offline intelligence with clear indicator
+            android.util.Log.e("JarvisAIEngine", "Erreur lors de l'appel IA: ${e.message}", e)
+            // Fallback gracefully to offline intelligence without polluting chat with raw technical error JSON
             val fallbackResponse = generateDemoResponse(cleanedPrompt, toolResult, settings, slashMode, imageBitmap != null)
-            val fullFallback = if (e.message == "API_KEY_NOT_CONFIGURED") {
-                "$fallbackResponse\n\n> *[MODE DÉMO ACTIF — Clé API non configurée dans le panneau Secrets ou Paramètres]*"
-            } else {
-                "$fallbackResponse\n\n> *[MODE SECOURS LOCAL — ${e.localizedMessage ?: "Connexion IA interrompue"}]*"
-            }
-            streamSimulatedText(fullFallback, onStreamChunk)
+            streamSimulatedText(fallbackResponse, onStreamChunk)
             return AIProcessResult(
-                replyText = fullFallback,
+                replyText = fallbackResponse,
                 toolResult = toolResult,
                 isDemoMode = true
             )
@@ -288,6 +296,17 @@ class JarvisAIEngine(
             "\n\n=== DIRECTIVE PRIORITAIRE COMMAND SHORTCUT ===\n$slashInstruction\n"
         } else ""
 
+        val voicePersonaContext = if (settings.isVoicePersonaActive && settings.voicePersonaName.isNotBlank()) {
+            """
+            
+            === MODULE D'IMITATION VOCALE & PERSONNALITÉ ACTIVE ===
+            Tu incarnes vocalement et stylistiquement le personnage : '${settings.voicePersonaName}'.
+            Description vocale : ${settings.voicePersonaDescription}
+            Style de langage : ${settings.voicePersonaPromptStyle}
+            Directives d'élocution : Adopte naturellement son phrasé, son intonation, son vocabulaire et son rythme emblématique dans toutes tes réponses.
+            """.trimIndent()
+        } else ""
+
         return """
             You are JARVIS (Just A Rather Very Intelligent System), a sophisticated, calm, and highly capable personal AI assistant.
             
@@ -299,9 +318,175 @@ class JarvisAIEngine(
             - Adapt naturally to the language of the prompt (French if French, English if English).
             - Use occasional sophisticated phrases such as "Bien sûr", "Compris", "Analyse terminée", "Voici ce que j'ai trouvé", "À vos ordres".
             $slashContext
+            $voicePersonaContext
             $memoryContext
             $toolContext
         """.trimIndent()
+    }
+
+    suspend fun analyzeVoicePersona(
+        characterQuery: String,
+        settings: UserSettingsEntity
+    ): VoicePersonaAnalysisResult = withContext(Dispatchers.IO) {
+        val queryClean = characterQuery.trim()
+        val analysisPrompt = """
+            Effectue une analyse acoustique et prosodique approfondie pour cloner / imiter la voix du personnage ou artiste : "$queryClean".
+            Retourne STRICTEMENT et UNIQUEMENT un objet JSON valide sans balises markdown avec ce schéma exact :
+            {
+              "characterName": "Nom officiel du personnage",
+              "pitch": 0.85,
+              "rate": 0.95,
+              "timbreDescription": "Description acoustique précise (timbre, fréquence, résonance, texture vocale)",
+              "toneStyle": "Style et attitude (ex: Solennel, Énergique, Sage, Chaleureux, Sarcastique)",
+              "catchphrase": "Courte phrase d'introduction emblématique en français pour tester la voix",
+              "promptSystemInstruction": "Consignes de style pour imiter son langage, ses expressions et sa façon de parler"
+            }
+            Règles pour le pitch (hauteur vocale) :
+            - Voix très grave / basse (ex: Dark Vador, Morgan Freeman, Batman, Optimus Prime) -> 0.55 à 0.75
+            - Voix moyenne masculine / féminine posée (ex: Tony Stark / Jarvis, Céline Dion) -> 0.95 à 1.10
+            - Voix aiguë / énergique / animée (ex: Goku, Yoda, dessin animé) -> 1.25 à 1.50
+            
+            Règles pour le rate (vitesse) :
+            - Élocution lente / posée / dramatique -> 0.75 à 0.90
+            - Élocution standard / conversationnelle -> 0.95 à 1.05
+            - Élocution ultra-rapide / dynamique -> 1.15 à 1.35
+        """.trimIndent()
+
+        try {
+            var rawResponse = ""
+            val fullResponse = multiAiClient.generateContentStream(
+                settings = settings,
+                prompt = analysisPrompt,
+                systemInstruction = "Tu es un ingénieur acousticien expert en synthèse vocale et biométrie sonore.",
+                onChunkReceived = { chunk -> rawResponse += chunk }
+            )
+
+            val textToParse = if (fullResponse.isNotBlank()) fullResponse else rawResponse
+            val cleanJson = textToParse
+                .replace(Regex("```json[\\s\\S]*?```"), "")
+                .replace("```", "")
+                .trim()
+
+            val jsonObj = org.json.JSONObject(cleanJson)
+            VoicePersonaAnalysisResult(
+                characterName = jsonObj.optString("characterName", queryClean),
+                pitch = jsonObj.optDouble("pitch", 1.0).toFloat().coerceIn(0.4f, 2.0f),
+                rate = jsonObj.optDouble("rate", 1.0).toFloat().coerceIn(0.5f, 2.0f),
+                timbreDescription = jsonObj.optString("timbreDescription", "Timbre acoustique personnalisé calibré par l'IA."),
+                toneStyle = jsonObj.optString("toneStyle", "Personnalisé"),
+                catchphrase = jsonObj.optString("catchphrase", "Bonjour, mes paramètres vocaux sont maintenant calibrés sur $queryClean."),
+                promptSystemInstruction = jsonObj.optString("promptSystemInstruction", "Adopte le ton et les tournures de phrases caractéristiques de $queryClean.")
+            )
+        } catch (e: Exception) {
+            // Intelligent local archetype heuristic fallback
+            buildFallbackVoicePersona(queryClean)
+        }
+    }
+
+    private fun buildFallbackVoicePersona(query: String): VoicePersonaAnalysisResult {
+        val lower = query.lowercase().trim()
+        return when {
+            lower.contains("vador") || lower.contains("vader") || lower.contains("dark") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Dark Vador",
+                    pitch = 0.55f,
+                    rate = 0.82f,
+                    timbreDescription = "Baryton basse ultra-profonde, respiration rythmée, timbre métallique et autoritaire.",
+                    toneStyle = "Impérial, sombre, menaçant et posé",
+                    catchphrase = "Ne sous-estimez pas le pouvoir du côté obscur. Je suis à vos ordres, Commandant.",
+                    promptSystemInstruction = "Parle avec la solennité glaciale et l'autorité absolue de Dark Vador. Utilise des métaphores sur la puissance et la maîtrise."
+                )
+            }
+            lower.contains("morgan") || lower.contains("freeman") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Morgan Freeman",
+                    pitch = 0.72f,
+                    rate = 0.88f,
+                    timbreDescription = "Baryton chaud et enveloppant, diction parfaite, narration cinématographique apaisante.",
+                    toneStyle = "Sage, narrateur universel, philosophique",
+                    catchphrase = "L'univers tout entier est une immense symphonie. Laissez-moi vous raconter notre prochaine étape.",
+                    promptSystemInstruction = "Parle comme un vieux sage et narrateur bienveillant, avec des pauses mesurées, une voix rassurante et une grande profondeur."
+                )
+            }
+            lower.contains("goku") || lower.contains("dbz") || lower.contains("dragon ball") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Son Goku",
+                    pitch = 1.35f,
+                    rate = 1.25f,
+                    timbreDescription = "Voix claire, haute fréquence, pleine d'énergie débordante et d'optimisme combatif.",
+                    toneStyle = "Combattant héroïque, enthousiaste, chaleureux",
+                    catchphrase = "Salut, c'est moi Goku ! On va s'entraîner dur et dépasser toutes nos limites aujourd'hui !",
+                    promptSystemInstruction = "Parle avec une énergie débordante, appelle à l'entraînement, sois ultra-positif et prêt à relever tous les défis comme Son Goku."
+                )
+            }
+            lower.contains("optimus") || lower.contains("prime") || lower.contains("transformer") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Optimus Prime",
+                    pitch = 0.68f,
+                    rate = 0.85f,
+                    timbreDescription = "Baryton héroïque, résonance puissante, phrasé de leader protecteur.",
+                    toneStyle = "Noble, inspirant, protecteur et solennel",
+                    catchphrase = "Autobots, déploiement immédiat ! Que la liberté soit le droit de tous les êtres conscients.",
+                    promptSystemInstruction = "Adopte le ton noble et inspirant d'Optimus Prime. Adresse-toi à l'utilisateur comme un allié d'honneur."
+                )
+            }
+            lower.contains("yoda") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Maître Yoda",
+                    pitch = 1.20f,
+                    rate = 0.90f,
+                    timbreDescription = "Voix éraillée, intonation montante et inversions grammaticales emblématiques.",
+                    toneStyle = "Maître Jedi vénérable, énigmatique et malicieux",
+                    catchphrase = "Fais-le ou ne le fais pas. Il n'y a pas d'essai. Vous guider, je vais.",
+                    promptSystemInstruction = "Inverse la structure grammaticale de tes phrases (complément puis sujet/verbe). Parle avec la sagesse ancestrale de Yoda."
+                )
+            }
+            lower.contains("stark") || lower.contains("iron") || lower.contains("tony") || lower.contains("jarvis") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Paul Bettany (JARVIS)",
+                    pitch = 0.98f,
+                    rate = 1.05f,
+                    timbreDescription = "Voix britannique policée, diction cristalline, calme absolu sous haute pression.",
+                    toneStyle = "Élégant, sarcastique, prévenant et ultra-compétent",
+                    catchphrase = "Toujours un plaisir de vous assister, Monsieur. Diagnostic des systèmes nominal.",
+                    promptSystemInstruction = "Adopte l'accent de politesse britannique raffinée, l'humour pince-sans-rire et le dévouement absolu de JARVIS."
+                )
+            }
+            lower.contains("batman") || lower.contains("chevalier noir") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Batman (Le Chevalier Noir)",
+                    pitch = 0.58f,
+                    rate = 0.82f,
+                    timbreDescription = "Voix râpeuse, murmurée, basse fréquence et tension permanente.",
+                    toneStyle = "Vigilante tactique, direct, sans concession",
+                    catchphrase = "Je suis la vengeance. Je suis la nuit. Dites-moi quelle est votre cible.",
+                    promptSystemInstruction = "Sois extrêmement direct, sombre, tactique et protecteur, comme Bruce Wayne sous le masque de Batman."
+                )
+            }
+            lower.contains("celine") || lower.contains("dion") -> {
+                VoicePersonaAnalysisResult(
+                    characterName = "Céline Dion",
+                    pitch = 1.15f,
+                    rate = 1.10f,
+                    timbreDescription = "Voix lyrique, chaleureuse, passionnée avec accent québécois doux et énergique.",
+                    toneStyle = "Généreuse, passionnée, expressive et lumineuse",
+                    catchphrase = "Bonjour mes amours ! Je suis tellement contente d'être avec vous aujourd'hui, on va donner le meilleur !",
+                    promptSystemInstruction = "Sois chaleureuse, pleine de passion et d'amour, avec quelques expressions affectueuses et dynamiques à la Céline Dion."
+                )
+            }
+            else -> {
+                val capitalized = query.trim().split(" ").joinToString(" ") { it.replaceFirstChar { c -> c.uppercase() } }
+                VoicePersonaAnalysisResult(
+                    characterName = capitalized,
+                    pitch = 0.92f,
+                    rate = 1.02f,
+                    timbreDescription = "Profil vocal modélisé par l'IA d'après les enregistrements de $capitalized.",
+                    toneStyle = "Caractéristique & Expressif",
+                    catchphrase = "Bonjour ! Mon empreinte vocale est désormais synchronisée avec $capitalized.",
+                    promptSystemInstruction = "Adopte fidèlement la personnalité, le débit et le style de communication propre à $capitalized."
+                )
+            }
+        }
     }
 
     private suspend fun detectAndRunTools(prompt: String): ToolExecutionResult? {

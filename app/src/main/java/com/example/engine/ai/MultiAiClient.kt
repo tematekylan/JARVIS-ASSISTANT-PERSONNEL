@@ -128,11 +128,12 @@ class MultiAiClient {
     private fun normalizeGeminiModel(rawModel: String): String {
         val lower = rawModel.lowercase().trim()
         return when {
-            lower.contains("pro") -> "gemini-2.5-pro"
+            lower.contains("2.5") && lower.contains("pro") -> "gemini-2.5-pro"
+            lower.contains("2.5") -> "gemini-2.5-flash"
             lower.contains("2.0") -> "gemini-2.0-flash"
-            lower.contains("1.5") && lower.contains("flash") -> "gemini-1.5-flash"
             lower.contains("1.5") && lower.contains("pro") -> "gemini-1.5-pro"
-            else -> "gemini-2.5-flash"
+            lower.contains("1.5") -> "gemini-1.5-flash"
+            else -> "gemini-2.0-flash"
         }
     }
 
@@ -187,26 +188,22 @@ class MultiAiClient {
         genConfig.put("temperature", 0.7)
         requestJson.put("generationConfig", genConfig)
 
-        val normalizedModel = normalizeGeminiModel(modelName)
+        val primaryModel = normalizeGeminiModel(modelName)
         val requestBody = requestJson.toString().toRequestBody(jsonMediaType)
 
-        try {
-            executeGeminiStreamRequest(normalizedModel, apiKey, requestBody, onChunkReceived)
-        } catch (e: Exception) {
-            if (normalizedModel != "gemini-2.5-flash") {
-                try {
-                    executeGeminiStreamRequest("gemini-2.5-flash", apiKey, requestBody, onChunkReceived)
-                } catch (_: Exception) {
-                    executeGeminiStreamRequest("gemini-1.5-flash", apiKey, requestBody, onChunkReceived)
-                }
-            } else {
-                try {
-                    executeGeminiStreamRequest("gemini-1.5-flash", apiKey, requestBody, onChunkReceived)
-                } catch (_: Exception) {
-                    throw e
-                }
+        // Try primary model, then fallback sequentially across valid versions
+        val modelCandidates = listOf(primaryModel, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash").distinct()
+
+        var lastException: Exception? = null
+        for (model in modelCandidates) {
+            try {
+                return@withContext executeGeminiStreamRequest(model, apiKey, requestBody, onChunkReceived)
+            } catch (e: Exception) {
+                lastException = e
             }
         }
+
+        throw lastException ?: RuntimeException("Impossible de se connecter aux serveurs Gemini.")
     }
 
     private suspend fun executeGeminiStreamRequest(

@@ -78,6 +78,23 @@ data class UserAccountEntity(
     val lastLoginAt: Long = System.currentTimeMillis()
 )
 
+@Entity(tableName = "incident_reports")
+data class IncidentReportEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Long = 0,
+    val incidentCode: String = "INC-" + System.currentTimeMillis().toString().takeLast(6),
+    val errorCode: String = "ERR_GENERIC_EXCEPTION",
+    val errorMessage: String = "",
+    val stackTrace: String = "",
+    val contextInfo: String = "",
+    val timestamp: Long = System.currentTimeMillis(),
+    val emailRecipient: String = "temateteddy@gmail.com",
+    val emailSent: Boolean = false,
+    val aiCouncilStatus: String = "CONVENED", // "CONVENED", "ANALYZING", "RESOLVED"
+    val aiCouncilDeliberation: String = "",
+    val aiCouncilHotfixCode: String = ""
+)
+
 @Entity(tableName = "user_settings")
 data class UserSettingsEntity(
     @PrimaryKey
@@ -104,5 +121,13 @@ data class UserSettingsEntity(
     val customOpenAiApiKey: String = "",
     val customClaudeApiKey: String = "",
     val customGroqApiKey: String = "",
-    val customDeepSeekApiKey: String = ""
+    val customDeepSeekApiKey: String = "",
+    val voicePersonaName: String = "",
+    val voicePersonaDescription: String = "",
+    val voicePersonaPitch: Float = 1.0f,
+    val voicePersonaRate: Float = 1.0f,
+    val voicePersonaPromptStyle: String = "",
+    val isVoicePersonaActive: Boolean = false,
+    val developerAlertEmail: String = "temateteddy@gmail.com",
+    val autoSendErrorAlerts: Boolean = true
 )

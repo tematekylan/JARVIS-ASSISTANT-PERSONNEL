@@ -1,6 +1,7 @@
 package com.example.data
 
 import com.example.data.entity.ConversationEntity
+import com.example.data.entity.IncidentReportEntity
 import com.example.data.entity.MemoryEntity
 import com.example.data.entity.MessageEntity
 import com.example.data.entity.NoteEntity
@@ -10,6 +11,19 @@ import com.example.data.entity.UserSettingsEntity
 import kotlinx.coroutines.flow.Flow
 
 class JarvisRepository(private val db: AppDatabase) {
+
+    // Incident Reports & AI Resolution Council
+    val allIncidents: Flow<List<IncidentReportEntity>> = db.incidentDao().getAllIncidents()
+
+    suspend fun getIncident(id: Long): IncidentReportEntity? = db.incidentDao().getIncidentById(id)
+
+    suspend fun recordIncident(incident: IncidentReportEntity): Long = db.incidentDao().insertIncident(incident)
+
+    suspend fun updateIncident(incident: IncidentReportEntity) = db.incidentDao().updateIncident(incident)
+
+    suspend fun deleteIncident(id: Long) = db.incidentDao().deleteIncident(id)
+
+    suspend fun clearAllIncidents() = db.incidentDao().clearAllIncidents()
 
     // Conversations
     val allConversations: Flow<List<ConversationEntity>> = db.conversationDao().getAllConversations()

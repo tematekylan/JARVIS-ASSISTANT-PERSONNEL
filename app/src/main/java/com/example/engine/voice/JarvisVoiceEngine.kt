@@ -78,15 +78,21 @@ class JarvisVoiceEngine(private val context: Context) : TextToSpeech.OnInitListe
 
     fun setSpeechParameters(rate: Float, pitch: Float, languageCode: String) {
         tts?.let {
-            it.setSpeechRate(rate.coerceIn(0.5f, 2.0f))
-            it.setPitch(pitch.coerceIn(0.5f, 2.0f))
+            it.setSpeechRate(rate.coerceIn(0.4f, 2.2f))
+            it.setPitch(pitch.coerceIn(0.4f, 2.2f))
             val locale = when (languageCode.lowercase()) {
                 "fr" -> Locale.FRENCH
                 "en" -> Locale.ENGLISH
                 else -> Locale.getDefault()
             }
-            it.setLanguage(locale)
+            try {
+                it.setLanguage(locale)
+            } catch (_: Exception) {}
         }
+    }
+
+    fun applyVoicePersona(pitch: Float, rate: Float, languageCode: String = "fr") {
+        setSpeechParameters(rate = rate, pitch = pitch, languageCode = languageCode)
     }
 
     fun speak(text: String, utteranceId: String = "JARVIS_RESPONSE") {

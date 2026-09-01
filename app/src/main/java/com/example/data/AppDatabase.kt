@@ -5,6 +5,7 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 import com.example.data.dao.ConversationDao
+import com.example.data.dao.IncidentDao
 import com.example.data.dao.MemoryDao
 import com.example.data.dao.MessageDao
 import com.example.data.dao.NoteDao
@@ -12,6 +13,7 @@ import com.example.data.dao.ToolLogDao
 import com.example.data.dao.UserAccountDao
 import com.example.data.dao.UserSettingsDao
 import com.example.data.entity.ConversationEntity
+import com.example.data.entity.IncidentReportEntity
 import com.example.data.entity.MemoryEntity
 import com.example.data.entity.MessageEntity
 import com.example.data.entity.NoteEntity
@@ -27,9 +29,10 @@ import com.example.data.entity.UserSettingsEntity
         NoteEntity::class,
         ToolLogEntity::class,
         UserSettingsEntity::class,
-        UserAccountEntity::class
+        UserAccountEntity::class,
+        IncidentReportEntity::class
     ],
-    version = 2,
+    version = 4,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -40,6 +43,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun toolLogDao(): ToolLogDao
     abstract fun userSettingsDao(): UserSettingsDao
     abstract fun userAccountDao(): UserAccountDao
+    abstract fun incidentDao(): IncidentDao
 
     companion object {
         @Volatile

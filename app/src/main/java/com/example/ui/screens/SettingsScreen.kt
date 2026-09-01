@@ -19,8 +19,14 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.Email
+import androidx.compose.material.icons.filled.GraphicEq
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.RecordVoiceOver
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Security
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.VolumeUp
@@ -30,6 +36,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -95,6 +102,17 @@ fun SettingsScreen(
     var deepseekKey by remember(currentSettings.customDeepSeekApiKey) { mutableStateOf(currentSettings.customDeepSeekApiKey) }
     var customGeminiKey by remember(currentSettings.customGeminiApiKey) { mutableStateOf(currentSettings.customGeminiApiKey) }
     var keySaveFeedback by remember { mutableStateOf<String?>(null) }
+
+    var devAlertEmail by remember(currentSettings.developerAlertEmail) { mutableStateOf(currentSettings.developerAlertEmail) }
+    var autoAlerts by remember(currentSettings.autoSendErrorAlerts) { mutableStateOf(currentSettings.autoSendErrorAlerts) }
+    var incidentTestFeedback by remember { mutableStateOf<String?>(null) }
+    var isRunningIncidentTest by remember { mutableStateOf(false) }
+
+    // Voice Persona & Character Imitation State
+    val isAnalyzingVoice by viewModel.isAnalyzingVoice.collectAsState()
+    var characterVoiceInput by remember { mutableStateOf("") }
+    var voiceCloneFeedback by remember { mutableStateOf<String?>(null) }
+    var voiceCloneError by remember { mutableStateOf<String?>(null) }
 
     var showFactoryResetDialog by remember { mutableStateOf(false) }
 
@@ -659,7 +677,7 @@ fun SettingsScreen(
                     // Test Voice Button
                     Button(
                         onClick = {
-                            viewModel.speakText("Tous les systèmes audio sont opérationnels, $userName. Calibrage terminé.")
+                            viewModel.speakText("Tous les systèmes audio sont opérationnels, $userName. Calibrage standard terminé.")
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan.copy(alpha = 0.2f)),
                         border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan),
@@ -670,13 +688,518 @@ fun SettingsScreen(
                     ) {
                         Icon(Icons.Default.VolumeUp, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("TESTER LA VOIX DE JARVIS", color = JarvisCyan, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
+                        Text("TESTER LA VOIX STANDARD", color = JarvisCyan, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace, fontSize = 11.sp)
                     }
                 }
             }
         }
 
-        // Section 4: Security & Factory Reset
+        // Section 3.5: AI Voice Persona & Character Imitation (Gemini Acoustic Cloning)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (currentSettings.isVoicePersonaActive && currentSettings.voicePersonaName.isNotBlank())
+                        JarvisCyan.copy(alpha = 0.08f) else JarvisBgCard
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (currentSettings.isVoicePersonaActive && currentSettings.voicePersonaName.isNotBlank())
+                        JarvisCyanGlow else JarvisBorderGlow
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.RecordVoiceOver,
+                                contentDescription = null,
+                                tint = JarvisCyanGlow,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "CLONAGE VOCAL IA & IMITATION",
+                                color = JarvisCyanGlow,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        if (currentSettings.voicePersonaName.isNotBlank()) {
+                            Switch(
+                                checked = currentSettings.isVoicePersonaActive,
+                                onCheckedChange = { enabled ->
+                                    viewModel.toggleVoicePersona(enabled)
+                                },
+                                colors = SwitchDefaults.colors(
+                                    checkedThumbColor = JarvisCyan,
+                                    checkedTrackColor = JarvisCyan.copy(alpha = 0.4f)
+                                ),
+                                modifier = Modifier.testTag("switch_persona_active")
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "Indiquez le nom d'un personnage, d'un artiste ou d'une célébrité. Gemini recherche ses caractéristiques acoustiques et expressives (timbre, tempo, intonation) pour que JARVIS vous réponde avec sa voix lors des échanges vocaux.",
+                        color = JarvisTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+
+                    // Input field & Analyze Button
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = characterVoiceInput,
+                            onValueChange = {
+                                characterVoiceInput = it
+                                voiceCloneFeedback = null
+                                voiceCloneError = null
+                            },
+                            placeholder = { Text("Ex: Morgan Freeman, Dark Vador, Son Goku, Batman...", color = JarvisTextMuted, fontSize = 11.sp) },
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = JarvisCyan,
+                                unfocusedBorderColor = JarvisBorderGlow,
+                                focusedTextColor = JarvisTextPrimary,
+                                unfocusedTextColor = JarvisTextPrimary
+                            ),
+                            singleLine = true,
+                            modifier = Modifier
+                                .weight(1f)
+                                .testTag("input_character_voice")
+                        )
+
+                        Button(
+                            onClick = {
+                                if (characterVoiceInput.isNotBlank() && !isAnalyzingVoice) {
+                                    voiceCloneFeedback = null
+                                    voiceCloneError = null
+                                    viewModel.analyzeAndCloneVoiceCharacter(characterVoiceInput) { success, msg ->
+                                        if (success) {
+                                            voiceCloneFeedback = msg
+                                            characterVoiceInput = ""
+                                        } else {
+                                            voiceCloneError = msg
+                                        }
+                                    }
+                                }
+                            },
+                            enabled = !isAnalyzingVoice && characterVoiceInput.isNotBlank(),
+                            colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.testTag("btn_clone_voice")
+                        ) {
+                            if (isAnalyzingVoice) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    color = JarvisBgVoid,
+                                    strokeWidth = 2.dp
+                                )
+                            } else {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = null, tint = JarvisBgVoid, modifier = Modifier.size(16.dp))
+                            }
+                        }
+                    }
+
+                    // Popular Character Presets Chips
+                    Text(
+                        text = "Suggestions de personnages rapides :",
+                        color = JarvisTextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+
+                    val presets = listOf(
+                        "Morgan Freeman",
+                        "Dark Vador",
+                        "Son Goku",
+                        "Batman",
+                        "Optimus Prime",
+                        "Yoda",
+                        "Tony Stark"
+                    )
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        presets.take(4).forEach { presetName ->
+                            Surface(
+                                color = JarvisBgSurface,
+                                shape = RoundedCornerShape(6.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisBorderGlow),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(enabled = !isAnalyzingVoice) {
+                                        characterVoiceInput = presetName
+                                        voiceCloneFeedback = null
+                                        voiceCloneError = null
+                                        viewModel.analyzeAndCloneVoiceCharacter(presetName) { success, msg ->
+                                            if (success) voiceCloneFeedback = msg else voiceCloneError = msg
+                                        }
+                                    }
+                            ) {
+                                Text(
+                                    text = presetName,
+                                    color = JarvisCyan,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        presets.drop(4).forEach { presetName ->
+                            Surface(
+                                color = JarvisBgSurface,
+                                shape = RoundedCornerShape(6.dp),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisBorderGlow),
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .clickable(enabled = !isAnalyzingVoice) {
+                                        characterVoiceInput = presetName
+                                        voiceCloneFeedback = null
+                                        voiceCloneError = null
+                                        viewModel.analyzeAndCloneVoiceCharacter(presetName) { success, msg ->
+                                            if (success) voiceCloneFeedback = msg else voiceCloneError = msg
+                                        }
+                                    }
+                            ) {
+                                Text(
+                                    text = presetName,
+                                    color = JarvisCyan,
+                                    fontSize = 9.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.SemiBold,
+                                    modifier = Modifier.padding(horizontal = 4.dp, vertical = 6.dp),
+                                    maxLines = 1
+                                )
+                            }
+                        }
+                    }
+
+                    // Success Feedback
+                    voiceCloneFeedback?.let { msg ->
+                        Surface(
+                            color = JarvisEmerald.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisEmerald),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = JarvisEmerald, modifier = Modifier.size(16.dp))
+                                Text(text = msg, color = JarvisEmerald, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    // Error Feedback
+                    voiceCloneError?.let { msg ->
+                        Surface(
+                            color = JarvisCrimson.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCrimson),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Warning, contentDescription = null, tint = JarvisCrimson, modifier = Modifier.size(16.dp))
+                                Text(text = msg, color = JarvisCrimson, fontSize = 11.sp)
+                            }
+                        }
+                    }
+
+                    // Active Cloned Voice Details Card
+                    if (currentSettings.voicePersonaName.isNotBlank()) {
+                        Surface(
+                            color = JarvisBgSurface,
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyanGlow.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                        Icon(Icons.Default.GraphicEq, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(16.dp))
+                                        Text(
+                                            text = "PERSONNAGE : ${currentSettings.voicePersonaName.uppercase()}",
+                                            color = JarvisCyanGlow,
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Bold,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                    }
+                                    Text(
+                                        text = if (currentSettings.isVoicePersonaActive) "ACTIF" else "EN PAUSE",
+                                        color = if (currentSettings.isVoicePersonaActive) JarvisEmerald else JarvisAmber,
+                                        fontSize = 9.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                if (currentSettings.voicePersonaDescription.isNotBlank()) {
+                                    Text(
+                                        text = "Timbre acoustique : ${currentSettings.voicePersonaDescription}",
+                                        color = JarvisTextPrimary,
+                                        fontSize = 11.sp
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = "Pitch: ${String.format("%.2f", currentSettings.voicePersonaPitch)}x  |  Vitesse: ${String.format("%.2f", currentSettings.voicePersonaRate)}x",
+                                        color = JarvisTextMuted,
+                                        fontSize = 10.sp,
+                                        fontFamily = FontFamily.Monospace
+                                    )
+                                }
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Test button with this voice
+                                    Button(
+                                        onClick = {
+                                            val testPhrase = when {
+                                                currentSettings.voicePersonaName.contains("Vador", ignoreCase = true) || currentSettings.voicePersonaName.contains("Vader", ignoreCase = true) ->
+                                                    "La force est puissante en vous, $userName. Je réponds désormais avec cette voix."
+                                                currentSettings.voicePersonaName.contains("Freeman", ignoreCase = true) ->
+                                                    "Bonjour $userName. L'univers tout entier est prêt à vous écouter."
+                                                currentSettings.voicePersonaName.contains("Goku", ignoreCase = true) ->
+                                                    "Salut c'est Goku ! Je suis super content de discuter avec toi $userName !"
+                                                else ->
+                                                    "Bonjour $userName, j'utilise maintenant la voix et le style de ${currentSettings.voicePersonaName} pour vous répondre."
+                                            }
+                                            viewModel.speakText(testPhrase)
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan.copy(alpha = 0.2f)),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan),
+                                        shape = RoundedCornerShape(6.dp),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Default.VolumeUp, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("ÉCOUTER", color = JarvisCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                                    }
+
+                                    // Reset button
+                                    Button(
+                                        onClick = {
+                                            viewModel.resetVoicePersona()
+                                            voiceCloneFeedback = "Voix standard rétablie."
+                                        },
+                                        colors = ButtonDefaults.buttonColors(containerColor = JarvisBgVoid),
+                                        border = androidx.compose.foundation.BorderStroke(1.dp, JarvisBorderGlow),
+                                        shape = RoundedCornerShape(6.dp)
+                                    ) {
+                                        Icon(Icons.Default.Refresh, contentDescription = null, tint = JarvisTextMuted, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("RÉINITIALISER", color = JarvisTextMuted, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 4: Developer Diagnostics, Incident Alerts & AI Council
+        item {
+            val context = androidx.compose.ui.platform.LocalContext.current
+            Card(
+                colors = CardDefaults.cardColors(containerColor = JarvisBgCard),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.4f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Email, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(18.dp))
+                            Text(
+                                text = "ALERTES ERREURS & COLLÈGE D'IA",
+                                color = JarvisCyanGlow,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(4.dp))
+                                .background(JarvisEmerald.copy(alpha = 0.2f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = "RÉSOLUTION AUTONOME",
+                                color = JarvisEmerald,
+                                fontSize = 8.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+
+                    Text(
+                        text = "En cas d'anomalie, JARVIS n'affiche plus d'erreur brute au milieu de votre fil de discussion. Un groupe d'IA (Architecte, Débogueur, Ingénieur Patch) se réunit en arrière-plan pour trouver la solution, et un rapport complet est préparé pour votre adresse email.",
+                        color = JarvisTextMuted,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp
+                    )
+
+                    // Email input field
+                    OutlinedTextField(
+                        value = devAlertEmail,
+                        onValueChange = {
+                            devAlertEmail = it
+                            viewModel.updateUserSettings(currentSettings.copy(developerAlertEmail = it))
+                        },
+                        label = { Text("Adresse Email Développeur (Destinataire)", fontSize = 10.sp, color = JarvisCyan) },
+                        placeholder = { Text("temateteddy@gmail.com", color = JarvisTextMuted, fontSize = 11.sp) },
+                        singleLine = true,
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = JarvisCyan,
+                            unfocusedBorderColor = JarvisBorderGlow,
+                            focusedTextColor = JarvisTextPrimary,
+                            unfocusedTextColor = JarvisTextPrimary
+                        ),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    // Toggle auto alert
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text("Envoi automatique des alertes", color = JarvisTextPrimary, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text("Génère l'intention d'email et prépare le hotfix dès détection", color = JarvisTextMuted, fontSize = 9.sp)
+                        }
+                        Switch(
+                            checked = autoAlerts,
+                            onCheckedChange = {
+                                autoAlerts = it
+                                viewModel.updateUserSettings(currentSettings.copy(autoSendErrorAlerts = it))
+                            },
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = JarvisCyan,
+                                checkedTrackColor = JarvisCyan.copy(alpha = 0.3f)
+                            )
+                        )
+                    }
+
+                    // Test Feedback
+                    incidentTestFeedback?.let { msg ->
+                        Surface(
+                            color = JarvisEmerald.copy(alpha = 0.15f),
+                            shape = RoundedCornerShape(6.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisEmerald),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(modifier = Modifier.padding(8.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                Icon(Icons.Default.Check, contentDescription = null, tint = JarvisEmerald, modifier = Modifier.size(16.dp))
+                                Text(text = msg, color = JarvisEmerald, fontSize = 10.sp)
+                            }
+                        }
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Test Simulation Button
+                        Button(
+                            onClick = {
+                                if (!isRunningIncidentTest) {
+                                    isRunningIncidentTest = true
+                                    incidentTestFeedback = null
+                                    viewModel.triggerSimulatedIncident { incident ->
+                                        isRunningIncidentTest = false
+                                        incidentTestFeedback = "Incident #${incident.incidentCode} généré avec succès ! Le Collège d'IA a délibéré et préparé le hotfix."
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan.copy(alpha = 0.2f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isRunningIncidentTest) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = JarvisCyan, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(4.dp))
+                            } else {
+                                Icon(Icons.Default.BugReport, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                            }
+                            Text("TESTER LE COLLÈGE D'IA", color = JarvisCyan, fontSize = 10.sp, fontWeight = FontWeight.Bold, fontFamily = FontFamily.Monospace)
+                        }
+
+                        // Direct Email Button
+                        Button(
+                            onClick = {
+                                val target = devAlertEmail.ifBlank { "temateteddy@gmail.com" }
+                                val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                    data = android.net.Uri.parse("mailto:$target")
+                                    putExtra(android.content.Intent.EXTRA_SUBJECT, "[JARVIS Diagnostic] Rapport d'état système")
+                                    putExtra(
+                                        android.content.Intent.EXTRA_TEXT,
+                                        "Rapport technique JARVIS :\n- Utilisateur: $userName\n- Provider actif: $aiProvider\n- Modèle: ${currentSettings.aiModel}\n- Voix Personnage: ${currentSettings.voicePersonaName.ifBlank { "Standard" }}\n- Horodatage: ${java.util.Date()}\n\nTout fonctionne nominalement.\n"
+                                    )
+                                }
+                                try {
+                                    context.startActivity(android.content.Intent.createChooser(intent, "Envoyer le rapport"))
+                                } catch (_: Exception) {
+                                    android.widget.Toast.makeText(context, "Aucune application de messagerie trouvée.", android.widget.Toast.LENGTH_SHORT).show()
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = JarvisBgSurface),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisBorderGlow),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Icon(Icons.Default.Email, contentDescription = null, tint = JarvisTextSecondary, modifier = Modifier.size(14.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("RAPPORT MANUEL", color = JarvisTextSecondary, fontSize = 10.sp, fontFamily = FontFamily.Monospace)
+                        }
+                    }
+                }
+            }
+        }
+
+        // Section 5: Security & Factory Reset
         item {
             Card(
                 colors = CardDefaults.cardColors(containerColor = JarvisBgCard),

@@ -20,15 +20,22 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryChargingFull
+import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Calculate
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Cloud
+import androidx.compose.material.icons.filled.Code
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Email
 import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Psychology
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Speed
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.TravelExplore
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -36,6 +43,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
@@ -90,7 +98,11 @@ fun CommandCenterScreen(
     val memories by viewModel.memories.collectAsState()
     val toolLogs by viewModel.recentToolLogs.collectAsState()
     val totalToolCalls by viewModel.totalToolCallsCount.collectAsState()
+    val incidents by viewModel.incidents.collectAsState()
     val userSettings by viewModel.userSettings.collectAsState()
+
+    val context = androidx.compose.ui.platform.LocalContext.current
+    var isSimulatingIncident by remember { mutableStateOf(false) }
 
     var testToolName by remember { mutableStateOf("calculator") }
     var testToolInput by remember { mutableStateOf("128 * 45") }
@@ -179,6 +191,160 @@ fun CommandCenterScreen(
                 MetricCounterCard(title = "MESSAGES", value = totalMessages.toString(), modifier = Modifier.weight(1f))
                 MetricCounterCard(title = "MEMORIES", value = memories.size.toString(), modifier = Modifier.weight(1f))
                 MetricCounterCard(title = "TOOL CALLS", value = totalToolCalls.toString(), modifier = Modifier.weight(1f))
+            }
+        }
+
+        // Section 2.2: AI SWAT Incident Resolution Council & Email Telemetry
+        item {
+            Card(
+                colors = CardDefaults.cardColors(
+                    containerColor = if (incidents.isNotEmpty()) JarvisCrimson.copy(alpha = 0.06f) else JarvisBgCard
+                ),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(
+                    1.dp,
+                    if (incidents.isNotEmpty()) JarvisCrimson.copy(alpha = 0.5f) else JarvisCyan.copy(alpha = 0.3f)
+                ),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.BugReport,
+                                contentDescription = null,
+                                tint = if (incidents.isNotEmpty()) JarvisCrimson else JarvisCyan,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "COLLÈGE D'IA DE RÉSOLUTION D'INCIDENTS",
+                                color = if (incidents.isNotEmpty()) JarvisCrimson else JarvisCyanGlow,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        val alertEmail = userSettings?.developerAlertEmail?.ifBlank { "temateteddy@gmail.com" } ?: "temateteddy@gmail.com"
+                        Text(
+                            text = "ALERTES : $alertEmail",
+                            color = JarvisTextMuted,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    Text(
+                        text = "Lorsqu'une anomalie survient, l'application isole l'erreur sans interrompre le fil de conversation et convoque immédiatement une cellule de crise d'IA (Architecte, Débogueur, Ingénieur Patch) tout en préparant la transmission du rapport par email.",
+                        color = JarvisTextSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 14.sp
+                    )
+
+                    // Action bar: Trigger test incident simulation & Clear history
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Button(
+                            onClick = {
+                                if (!isSimulatingIncident) {
+                                    isSimulatingIncident = true
+                                    viewModel.triggerSimulatedIncident {
+                                        isSimulatingIncident = false
+                                    }
+                                }
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan.copy(alpha = 0.2f)),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan),
+                            shape = RoundedCornerShape(8.dp),
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            if (isSimulatingIncident) {
+                                CircularProgressIndicator(modifier = Modifier.size(14.dp), color = JarvisCyan, strokeWidth = 2.dp)
+                                Spacer(modifier = Modifier.width(6.dp))
+                            } else {
+                                Icon(Icons.Default.Refresh, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                            }
+                            Text(
+                                text = if (isSimulatingIncident) "DÉLIBÉRATION..." else "SIMULER ANOMALIE & DÉLIBÉRATION",
+                                color = JarvisCyan,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        if (incidents.isNotEmpty()) {
+                            Button(
+                                onClick = { viewModel.clearAllIncidents() },
+                                colors = ButtonDefaults.buttonColors(containerColor = JarvisBgVoid),
+                                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisBorderGlow),
+                                shape = RoundedCornerShape(8.dp)
+                            ) {
+                                Icon(Icons.Default.Delete, contentDescription = null, tint = JarvisTextMuted, modifier = Modifier.size(14.dp))
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "PURGER",
+                                    color = JarvisTextMuted,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+
+                    // Incidents List
+                    if (incidents.isEmpty()) {
+                        Surface(
+                            color = JarvisEmerald.copy(alpha = 0.1f),
+                            shape = RoundedCornerShape(8.dp),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, JarvisEmerald.copy(alpha = 0.4f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Row(
+                                modifier = Modifier.padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = JarvisEmerald, modifier = Modifier.size(16.dp))
+                                Text(
+                                    text = "AUCUN INCIDENT ACTIF // SYSTÈMES 100% STABLES & SAINS",
+                                    color = JarvisEmerald,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    } else {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            incidents.forEach { incident ->
+                                IncidentReportCard(
+                                    incident = incident,
+                                    onSendEmail = {
+                                        val intent = viewModel.incidentEngine.buildEmailIntent(incident)
+                                        try {
+                                            context.startActivity(intent)
+                                        } catch (_: Exception) {
+                                            android.widget.Toast.makeText(context, "Client email introuvable.", android.widget.Toast.LENGTH_SHORT).show()
+                                        }
+                                    },
+                                    onReAnalyze = { viewModel.reConveneAiCouncil(incident) },
+                                    onDelete = { viewModel.deleteIncident(incident.id) }
+                                )
+                            }
+                        }
+                    }
+                }
             }
         }
 
@@ -653,6 +819,210 @@ fun ToolLogRow(log: ToolLogEntity) {
                 maxLines = 2,
                 fontFamily = FontFamily.Monospace
             )
+        }
+    }
+}
+
+@Composable
+fun IncidentReportCard(
+    incident: com.example.data.entity.IncidentReportEntity,
+    onSendEmail: () -> Unit,
+    onReAnalyze: () -> Unit,
+    onDelete: () -> Unit
+) {
+    var isExpanded by remember { mutableStateOf(true) }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = JarvisBgCard),
+        shape = RoundedCornerShape(10.dp),
+        border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCrimson.copy(alpha = 0.6f)),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            // Header Row
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(JarvisCrimson)
+                    )
+                    Text(
+                        text = incident.incidentCode,
+                        color = JarvisCrimson,
+                        fontSize = 12.sp,
+                        fontWeight = FontWeight.ExtraBold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(JarvisAmber.copy(alpha = 0.2f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = incident.errorCode,
+                            color = JarvisAmber,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    val dateStr = SimpleDateFormat("dd/MM HH:mm:ss", Locale.getDefault()).format(Date(incident.timestamp))
+                    Text(
+                        text = dateStr,
+                        color = JarvisTextMuted,
+                        fontSize = 9.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                    IconButton(onClick = onDelete, modifier = Modifier.size(24.dp)) {
+                        Icon(
+                            imageVector = Icons.Default.Delete,
+                            contentDescription = "Supprimer l'incident",
+                            tint = JarvisTextMuted,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+            }
+
+            // Error summary
+            Text(
+                text = incident.errorMessage,
+                color = JarvisTextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            if (incident.contextInfo.isNotBlank()) {
+                Text(
+                    text = "Contexte : ${incident.contextInfo}",
+                    color = JarvisTextMuted,
+                    fontSize = 10.sp,
+                    fontFamily = FontFamily.Monospace
+                )
+            }
+
+            // AI Council Deliberation Section
+            Surface(
+                color = Color(0xFF070E1E),
+                shape = RoundedCornerShape(8.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan.copy(alpha = 0.3f)),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Icon(Icons.Default.Psychology, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(16.dp))
+                            Text(
+                                text = "DÉLIBÉRATION DU COLLÈGE D'IA (SWAT)",
+                                color = JarvisCyan,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                        Text(
+                            text = if (incident.aiCouncilStatus == "RESOLVED") "CONSEIL UNANIME" else "DÉLIBÉRATION EN COURS",
+                            color = if (incident.aiCouncilStatus == "RESOLVED") JarvisEmerald else JarvisAmber,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+
+                    if (isExpanded) {
+                        Text(
+                            text = incident.aiCouncilDeliberation,
+                            color = JarvisTextSecondary,
+                            fontSize = 11.sp,
+                            lineHeight = 15.sp
+                        )
+
+                        if (incident.aiCouncilHotfixCode.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "PROPOSITION DE PATCH / HOTFIX :",
+                                color = JarvisAmber,
+                                fontSize = 9.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(Color(0xFF030712))
+                                    .border(1.dp, JarvisBorderBright, RoundedCornerShape(6.dp))
+                                    .padding(8.dp)
+                            ) {
+                                Text(
+                                    text = incident.aiCouncilHotfixCode,
+                                    color = JarvisEmerald,
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Button(
+                    onClick = onSendEmail,
+                    colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1.5f)
+                ) {
+                    Icon(Icons.Default.Email, contentDescription = null, tint = JarvisBgVoid, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "ENVOYER L'ALERTE À TEMATETEDDY@GMAIL.COM",
+                        color = JarvisBgVoid,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Button(
+                    onClick = onReAnalyze,
+                    colors = ButtonDefaults.buttonColors(containerColor = JarvisBgSurface),
+                    border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyan),
+                    shape = RoundedCornerShape(8.dp),
+                    modifier = Modifier.weight(1f)
+                ) {
+                    Icon(Icons.Default.Refresh, contentDescription = null, tint = JarvisCyan, modifier = Modifier.size(14.dp))
+                    Spacer(modifier = Modifier.width(4.dp))
+                    Text(
+                        text = "RÉ-ÉVALUER",
+                        color = JarvisCyan,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+            }
         }
     }
 }
