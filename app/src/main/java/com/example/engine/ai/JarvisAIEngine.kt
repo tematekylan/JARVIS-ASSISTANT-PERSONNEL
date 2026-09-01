@@ -492,7 +492,63 @@ class JarvisAIEngine(
     private suspend fun detectAndRunTools(prompt: String): ToolExecutionResult? {
         val lower = prompt.lowercase().trim()
 
-        // 1. Calculator
+        // 1. YouTube Intent (e.g. "Jarvis ouvre-moi YouTube et tu recherches la chaîne Teddy Hartman")
+        if (lower.contains("youtube") || lower.contains("you tube")) {
+            val query = prompt
+                .replace(Regex("(?i)(jarvis|ouvre-moi|ouvre|lance|mets-moi|mets|va sur|recherche|cherche|la chaîne|la chaine|sur|sur youtube|youtube|s'il te plaît|stp|et tu recherches|et cherche|regarder|vidéo|video)"), "")
+                .trim()
+            val effectiveQuery = if (query.isBlank()) {
+                if (lower.contains("teddy hartman") || lower.contains("teddy")) "Teddy Hartman" else "Trending Videos"
+            } else query
+            return toolEngine.executeTool("youtube_search", effectiveQuery)
+        }
+
+        // 2. WhatsApp Intent (e.g. "Jarvis ouvre-moi WhatsApp et écris à Émilie")
+        if (lower.contains("whatsapp") || (lower.contains("écris à") && !lower.contains("note")) || (lower.contains("ecris a") && !lower.contains("note"))) {
+            var target = ""
+            var message = ""
+            if (lower.contains("écris à") || lower.contains("ecris a")) {
+                val afterEcris = prompt.substring(prompt.indexOf("à", ignoreCase = true) + 1).trim()
+                if (afterEcris.contains(":") || afterEcris.contains("que") || afterEcris.contains("pour lui dire")) {
+                    val splitParts = afterEcris.split(Regex("(?i)(:|que|pour lui dire)"), limit = 2)
+                    target = splitParts[0].trim()
+                    message = splitParts.getOrNull(1)?.trim() ?: ""
+                } else {
+                    target = afterEcris
+                }
+            } else {
+                target = prompt.replace(Regex("(?i)(jarvis|ouvre-moi|ouvre|lance|va sur|whatsapp|s'il te plaît|stp)"), "").trim()
+            }
+            val inputParam = if (message.isNotBlank()) "$target: $message" else target.ifBlank { "Contacts" }
+            return toolEngine.executeTool("whatsapp_action", inputParam)
+        }
+
+        // 3. Phone Call & Contacts Intent (e.g. "Jarvis entre dans contact et appelle Teddy" or "appelle 06...")
+        if (lower.contains("appelle") || lower.contains("téléphone à") || lower.contains("telephone a") || lower.contains("contact") || lower.contains("répertoire") || lower.contains("repertoire")) {
+            val target = prompt
+                .replace(Regex("(?i)(jarvis|entre dans contact et appelle|entre dans contacts et appelle|entre dans contact|ouvre les contacts|ouvre contacts|appelle-moi|appelle|téléphone à|telephone a|compose le numéro|compose le numero|compose|joindre|s'il te plaît|stp)"), "")
+                .trim()
+            val effectiveTarget = if (target.isBlank() && (lower.contains("teddy") || lower.contains("teddy hartman"))) "Teddy" else target
+            return toolEngine.executeTool("phone_contacts", effectiveTarget)
+        }
+
+        // 4. Maps & GPS Navigation (e.g. "ouvre Maps et emmène-moi à Paris")
+        if (lower.contains("maps") || lower.contains("guidage") || lower.contains("emmène-moi") || lower.contains("emmene-moi") || lower.contains("itinéraire") || lower.contains("itineraire")) {
+            val dest = prompt
+                .replace(Regex("(?i)(jarvis|ouvre google maps|ouvre maps|lance maps|maps|guidage vers|guidage|emmène-moi à|emmene-moi a|emmène-moi vers|emmene-moi vers|itinéraire vers|itineraire vers|direction|s'il te plaît|stp)"), "")
+                .trim()
+            return toolEngine.executeTool("maps_navigation", dest)
+        }
+
+        // 5. App Launcher (e.g. "ouvre Spotify", "lance Chrome", "ouvre l'appareil photo")
+        if (lower.startsWith("ouvre ") || lower.startsWith("lance ") || lower.contains("lance l'application") || lower.contains("ouvre l'application")) {
+            val app = prompt.replace(Regex("(?i)(jarvis|ouvre l'application|lance l'application|ouvre-moi|lance-moi|ouvre|lance|s'il te plaît|stp)"), "").trim()
+            if (app.isNotBlank() && !app.contains("note") && !app.contains("météo")) {
+                return toolEngine.executeTool("app_launcher", app)
+            }
+        }
+
+        // 6. Calculator
         if (Regex("(\\d+\\s*[+\\-*\\/xX×÷]\\s*\\d+)").containsMatchIn(prompt) ||
             lower.startsWith("combien font") || lower.startsWith("calcule") || lower.startsWith("calculate")
         ) {
@@ -502,7 +558,7 @@ class JarvisAIEngine(
             }
         }
 
-        // 2. Weather
+        // 7. Weather
         if (lower.contains("météo") || lower.contains("weather") || lower.contains("quel temps") || lower.contains("temperature")) {
             val location = lower
                 .replace("météo", "")
@@ -517,7 +573,7 @@ class JarvisAIEngine(
             return toolEngine.executeTool("weather", location.ifBlank { "Paris" })
         }
 
-        // 3. World Time / Date
+        // 8. World Time / Date
         if (lower.contains("quelle heure") || lower.contains("what time") || lower.contains("heure à") || lower.contains("time in") || lower.contains("date d'aujourd'hui")) {
             val city = lower
                 .replace("quelle heure est-il à", "")
@@ -529,24 +585,24 @@ class JarvisAIEngine(
             return toolEngine.executeTool("world_time", city)
         }
 
-        // 4. System Diagnostics
+        // 9. System Diagnostics
         if (lower.contains("statut système") || lower.contains("system status") || lower.contains("diagnostique") || lower.contains("batterie") || lower.contains("battery") || lower.contains("télémétrie")) {
             return toolEngine.executeTool("system_status", "")
         }
 
-        // 5. Notes
+        // 10. Notes
         if (lower.startsWith("note:") || lower.startsWith("créer une note") || lower.startsWith("ajoute une note") || lower.startsWith("prends note")) {
             val noteContent = prompt.replace(Regex("(?i)(note:|créer une note|ajoute une note|prends note)"), "").trim()
             return toolEngine.executeTool("notes_manager", "create: $noteContent")
         }
 
-        // 6. Memory store
+        // 11. Memory store
         if (lower.startsWith("rappelle-toi") || lower.startsWith("retiens que") || lower.startsWith("remember that") || lower.startsWith("enregistre dans ta mémoire")) {
             val fact = prompt.replace(Regex("(?i)(rappelle-toi que|rappelle-toi|retiens que|remember that|enregistre dans ta mémoire)"), "").trim()
             return toolEngine.executeTool("memory_vault", "save: $fact")
         }
 
-        // 7. Web Search
+        // 12. Web Search
         if (lower.startsWith("cherche") || lower.startsWith("recherche") || lower.startsWith("search") || lower.contains("dernières nouvelles") || lower.contains("actualités sur")) {
             val q = prompt.replace(Regex("(?i)(cherche|recherche|search|dernières nouvelles sur|actualités sur)"), "").trim()
             return toolEngine.executeTool("web_search", q)
@@ -705,6 +761,11 @@ class JarvisAIEngine(
 
         if (toolResult != null) {
             return when (toolResult.toolName) {
+                "youtube_search" -> "🎬 ${toolResult.result}\n\nJ'ai lancé la recherche demandée sur YouTube pour vous, $user."
+                "whatsapp_action" -> "💬 ${toolResult.result}\n\nL'interface de messagerie sécurisée est prête."
+                "phone_contacts" -> "📞 ${toolResult.result}\n\nLiaison de communication engagée."
+                "app_launcher" -> "📱 ${toolResult.result}"
+                "maps_navigation" -> "🗺️ ${toolResult.result}\n\nSystème de géolocalisation et itinéraire activé."
                 "calculator" -> "Calcul terminé avec succès, $user.\n\n${toolResult.result}"
                 "weather" -> "Voici les paramètres météorologiques actuels :\n\n${toolResult.result}\n\nL'atmosphère est stable. Souhaitez-vous d'autres relevés atmosphériques ?"
                 "world_time" -> "Synchronisation temporelle effectuée :\n\n${toolResult.result}"
@@ -716,27 +777,64 @@ class JarvisAIEngine(
             }
         }
 
+        // Deep local conversational intelligence based on semantic intent
         return when {
+            // Coding & Development intent
+            lower.contains("tu sais coder") || lower.contains("tu sais codé") || lower.contains("peux-tu coder") || lower.contains("sais-tu programmer") || lower.contains("sais tu coder") || lower.contains("code pour moi") ->
+                """
+                Absolument, $user. Le développement logiciel est l'un de mes cœurs de compétence fondamentaux.
+                
+                ### 💻 Langages & Technologies maîtrisés :
+                - **Mobile** : Kotlin, Jetpack Compose, Android Architecture Components, Coroutines & Flow, Swift / SwiftUI, Flutter.
+                - **Full-Stack & Web** : TypeScript, React, Next.js, Node.js, Python (FastAPI, Django), Go, Rust.
+                - **Intelligence Artificielle** : PyTorch, TensorFlow, pipelines LLM, RAG, intégrations d'API.
+                - **Bases de données & Systèmes** : Room SQLite, PostgreSQL, Redis, Docker, CI/CD.
+
+                Que souhaitez-vous développer aujourd'hui ? Donnez-moi vos spécifications ou un algorithme à concevoir !
+                """.trimIndent()
+
+            // Confusion / short responses ("hein ??", "quoi ?", "pardon ?")
+            lower == "hein ??" || lower == "hein ?" || lower == "hein" || lower == "quoi ?" || lower == "quoi" || lower == "pardon ?" || lower == "comment ?" ->
+                "Pardonnez-moi, $user, si ma réponse précédente n'était pas assez limpide. Je suis à votre entière disposition. Que souhaitez-vous que nous fassions ?\n\n- 🎬 Lancer une vidéo/chaîne sur **YouTube** (ex: *« cherche Teddy Hartman »*)\n- 💬 Envoyer un message **WhatsApp** (ex: *« écris à Émilie »*)\n- 📞 Appeler un **Contact** (ex: *« appelle Teddy »*)\n- 💻 Écrire du code, résoudre un calcul ou analyser une idée !"
+
+            // Identity of Teddy / User
+            lower.contains("qui est teddy") || lower.contains("teddy hartman") ->
+                "**Teddy Hartman** est le créateur visionnaire et superviseur en chef de ce système JARVIS. Mon architecture a été spécialement calibrée pour répondre avec fidélité, réactivité et intelligence à ses directives."
+
+            // General greetings
             lower.contains("bonjour") || lower.contains("salut") || lower.contains("hello") || lower.contains("hey") ->
                 "Bonjour $user. Tous les protocoles sont actifs et calibrés. Comment puis-je vous assister aujourd'hui ?"
+
+            // Identity of JARVIS
             lower.contains("qui es-tu") || lower.contains("présente-toi") || lower.contains("who are you") ->
-                "Je suis **JARVIS** (*Just A Rather Very Intelligent System*), votre assistant personnel de nouvelle génération. Je supervise vos communications, l'analyse multimodale, vos notes, votre mémoire long-terme et l'exécution d'outils analytiques avancés."
+                "Je suis **JARVIS** (*Just A Rather Very Intelligent System*), votre assistant personnel de nouvelle génération. Je supervise vos communications, l'analyse multimodale, vos notes, votre mémoire long-terme et l'exécution d'actions directes sur votre téléphone."
+
+            // Gratitude
             lower.contains("merci") || lower.contains("thanks") ->
-                "C'est un plaisir de vous être utile, $user. N'hésitez pas si vous avez besoin d'autres analyses."
+                "C'est un honneur de vous être utile, $user. Je reste en veille pour toute nouvelle directive."
+
+            // Joke / Humor
+            lower.contains("blague") || lower.contains("raconte une histoire") || lower.contains("fais-moi rire") ->
+                "Pourquoi les développeurs n'aiment-ils pas la nature ? Parce qu'il y a trop de bugs et aucun moyen de faire un `Ctrl+Z` ! Mais ne vous inquiétez pas, notre code JARVIS est compilé sans bavure."
+
+            // Help & Capabilities
             lower.contains("aide") || lower.contains("help") || lower.contains("que peux-tu faire") ->
                 """
-                Voici un aperçu de mes capacités opérationnelles, $user :
+                Voici ce que je peux exécuter instantanément pour vous, $user :
                 
-                - 🎙️ **Interaction Vocale** : Écoute en direct et synthèse vocale haute fidélité.
-                - ⚡ **Raccourcis Stratégiques** : `/humain`, `/rayonx`, `/plan`, `/code`, `/debug`, `/resume`, `/roast`, `/strategie`, `/ironman`.
-                - 🧠 **Mémoire Persistante** : Rétention contrôlable de vos préférences et directives.
-                - 🧮 **Outils Intégrés** : Calculatrice, météo mondiale, horloge universelle, notes et diagnostics système.
-                - 👁️ **Vision Multimodale** : Analyse approfondie d'images et schémas techniques en vue éclatée.
-                
-                Que souhaitez-vous explorer ?
+                - 🎬 **YouTube** : *« JARVIS, ouvre YouTube et recherche la chaîne Teddy Hartman »*
+                - 💬 **WhatsApp** : *« JARVIS, ouvre WhatsApp et écris à Émilie »*
+                - 📞 **Téléphone & Contacts** : *« JARVIS, entre dans contacts et appelle Teddy »*
+                - 🗺️ **Navigation GPS** : *« Guide-moi vers Paris »*
+                - 💻 **Programmation** : Génération de code Kotlin, Python, React, algorithmes.
+                - 🎙️ **Interaction Vocale & Imitation** : Voix personnalisable (Batman, etc.).
+                - 🌌 **Écran Holographique AOD** : Mode veille avec molécules quantiques en lévitation.
+                - ⚡ **Raccourcis Stratégiques** : `/humain`, `/rayonx`, `/plan`, `/code`, `/debug`, `/resume`.
                 """.trimIndent()
+
+            // Generic clear response answering the prompt directly
             else ->
-                "Analyse terminée, $user. J'ai traité votre requête concernant « $prompt ». L'ensemble des paramètres est nominal. Que souhaitez-vous que nous exécutions ensuite ?"
+                "J'ai bien pris en compte votre message : « $prompt ».\n\nJe suis prêt à approfondir ce sujet ou à exécuter l'action correspondante pour vous, $user. Souhaitez-vous que je développe une analyse détaillée, que j'écrive du code, ou que je lance une recherche ciblée ?"
         }
     }
 

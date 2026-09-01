@@ -3,10 +3,13 @@ package com.example.engine.tools
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.hardware.camera2.CameraManager
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
+import android.net.Uri
 import android.os.BatteryManager
 import android.os.Build
+import android.provider.ContactsContract
 import com.example.data.JarvisRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -36,6 +39,11 @@ class JarvisToolEngine(
     private val repository: JarvisRepository
 ) {
     val availableTools = listOf(
+        ToolDefinition("youtube_search", "Recherche et ouvre une vidéo ou chaîne sur YouTube", "query: string", "play_circle"),
+        ToolDefinition("whatsapp_action", "Ouvre WhatsApp et initie une conversation ou compose un message", "target: string, message: string", "chat"),
+        ToolDefinition("phone_contacts", "Accède aux contacts et compose un appel téléphonique", "target: string", "call"),
+        ToolDefinition("app_launcher", "Lance une application installée sur le smartphone (Spotify, Maps, Chrome, Camera...)", "appName: string", "apps"),
+        ToolDefinition("maps_navigation", "Lance le guidage GPS ou recherche un lieu sur Google Maps", "destination: string", "navigation"),
         ToolDefinition("calculator", "Calculates mathematical and arithmetic expressions", "expression: string", "calculate"),
         ToolDefinition("weather", "Gets meteorological forecast and conditions for a city", "city: string", "cloud"),
         ToolDefinition("world_time", "Gives exact current time and date for a city or timezone", "city: string", "schedule"),
@@ -52,6 +60,21 @@ class JarvisToolEngine(
 
         try {
             when (toolName.lowercase()) {
+                "youtube_search", "youtube" -> {
+                    resultText = openYouTube(input)
+                }
+                "whatsapp_action", "whatsapp" -> {
+                    resultText = handleWhatsApp(input)
+                }
+                "phone_contacts", "phone", "contacts", "call" -> {
+                    resultText = handlePhoneAndContacts(input)
+                }
+                "app_launcher", "launch_app", "open_app" -> {
+                    resultText = launchApp(input)
+                }
+                "maps_navigation", "maps", "gps" -> {
+                    resultText = handleMaps(input)
+                }
                 "calculator" -> {
                     resultText = calculateMath(input)
                 }
@@ -99,6 +122,179 @@ class JarvisToolEngine(
             isSuccess = success,
             executionTimeMs = duration
         )
+    }
+
+    private fun openYouTube(query: String): String {
+        val q = query.trim()
+        return try {
+            val appIntent = Intent(Intent.ACTION_SEARCH).apply {
+                setPackage("com.google.android.youtube")
+                putExtra("query", q)
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(appIntent)
+            "YouTube ouvert pour la recherche : « $q » (Chaîne/Vidéo)."
+        } catch (_: Exception) {
+            try {
+                val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.youtube.com/results?search_query=" + Uri.encode(q))).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(webIntent)
+                "YouTube ouvert dans le navigateur pour : « $q »."
+            } catch (e2: Exception) {
+                "Impossible d'ouvrir YouTube : ${e2.localizedMessage}"
+            }
+        }
+    }
+
+    private fun handleWhatsApp(input: String): String {
+        val trimmed = input.trim()
+        var contact = ""
+        var msg = ""
+
+        if (trimmed.contains(":") || trimmed.contains("->")) {
+            val sep = if (trimmed.contains("->")) "->" else ":"
+            val parts = trimmed.split(sep, limit = 2)
+            contact = parts[0].trim()
+            msg = parts.getOrNull(1)?.trim() ?: ""
+        } else {
+            val lower = trimmed.lowercase()
+            if (lower.contains("écris à") || lower.contains("ecris a")) {
+                val rem = trimmed.substring(trimmed.indexOf("à", ignoreCase = true) + 1).trim()
+                contact = rem
+            } else {
+                contact = trimmed
+            }
+        }
+
+        return try {
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                setPackage("com.whatsapp")
+                if (msg.isNotBlank()) {
+                    putExtra(Intent.EXTRA_TEXT, msg)
+                }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(sendIntent)
+            if (contact.isNotBlank()) {
+                "WhatsApp ouvert pour envoyer un message à « $contact » ${if (msg.isNotBlank()) ": \"$msg\"" else ""}."
+            } else {
+                "WhatsApp ouvert."
+            }
+        } catch (_: Exception) {
+            try {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage("com.whatsapp")
+                if (launchIntent != null) {
+                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(launchIntent)
+                    "Application WhatsApp lancée avec succès."
+                } else {
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://web.whatsapp.com/")).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(webIntent)
+                    "WhatsApp Web ouvert dans le navigateur."
+                }
+            } catch (e2: Exception) {
+                "WhatsApp n'a pas pu être lancé : ${e2.localizedMessage}"
+            }
+        }
+    }
+
+    private fun handlePhoneAndContacts(input: String): String {
+        val target = input.trim()
+        return try {
+            // Check if digits or phone number
+            val isNumber = target.matches(Regex("^[+0-9\\s\\-\\(\\)]{3,}$"))
+            if (isNumber) {
+                val dialIntent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:${target.replace(" ", "")}")).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(dialIntent)
+                "Composition de l'appel vers le numéro : $target"
+            } else {
+                // Open Contacts or Search Contact
+                val contactsIntent = Intent(Intent.ACTION_VIEW, ContactsContract.Contacts.CONTENT_URI).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(contactsIntent)
+                if (target.isNotBlank()) {
+                    "Répertoire de contacts ouvert pour joindre : « $target »."
+                } else {
+                    "Répertoire de contacts ouvert."
+                }
+            }
+        } catch (e: Exception) {
+            "Action téléphone/contacts interrompue : ${e.localizedMessage}"
+        }
+    }
+
+    private fun launchApp(appName: String): String {
+        val name = appName.trim().lowercase()
+        val packageName = when {
+            name.contains("youtube") -> "com.google.android.youtube"
+            name.contains("whatsapp") -> "com.whatsapp"
+            name.contains("spotify") -> "com.spotify.music"
+            name.contains("chrome") -> "com.android.chrome"
+            name.contains("maps") -> "com.google.android.apps.maps"
+            name.contains("camera") || name.contains("photo") || name.contains("appareil") -> null // Use Action
+            name.contains("gallery") || name.contains("galerie") || name.contains("photos") -> "com.google.android.apps.photos"
+            name.contains("calculator") || name.contains("calculatrice") -> "com.google.android.calculator"
+            name.contains("clock") || name.contains("horloge") || name.contains("alarme") -> "com.google.android.deskclock"
+            else -> null
+        }
+
+        return try {
+            if (packageName != null) {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage(packageName)
+                if (launchIntent != null) {
+                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(launchIntent)
+                    "Application « $appName » lancée avec succès."
+                } else {
+                    val storeIntent = Intent(Intent.ACTION_VIEW, Uri.parse("market://details?id=$packageName")).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(storeIntent)
+                    "L'application « $appName » n'est pas installée. Redirection vers le Play Store."
+                }
+            } else if (name.contains("camera") || name.contains("appareil")) {
+                val camIntent = Intent(android.provider.MediaStore.ACTION_IMAGE_CAPTURE).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(camIntent)
+                "Appareil photo activé."
+            } else {
+                // Search via web
+                val webSearchIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.google.com/search?q=" + Uri.encode(appName))).apply {
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(webSearchIntent)
+                "Recherche globale lancée pour « $appName »."
+            }
+        } catch (e: Exception) {
+            "Impossible d'ouvrir l'application $appName : ${e.localizedMessage}"
+        }
+    }
+
+    private fun handleMaps(destination: String): String {
+        val dest = destination.trim()
+        return try {
+            val uri = if (dest.isNotBlank()) {
+                Uri.parse("geo:0,0?q=" + Uri.encode(dest))
+            } else {
+                Uri.parse("geo:0,0?q=")
+            }
+            val mapIntent = Intent(Intent.ACTION_VIEW, uri).apply {
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(mapIntent)
+            if (dest.isNotBlank()) "Google Maps lancé pour : « $dest »."
+            else "Google Maps lancé."
+        } catch (e: Exception) {
+            "Impossible d'ouvrir la cartographie : ${e.localizedMessage}"
+        }
     }
 
     private fun calculateMath(expr: String): String {

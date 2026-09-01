@@ -32,6 +32,7 @@ import com.example.ui.components.JarvisScreen
 import com.example.ui.components.JarvisTopBar
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CommandCenterScreen
+import com.example.ui.screens.HolographicAmbientScreen
 import com.example.ui.screens.MemoryScreen
 import com.example.ui.screens.NotesScreen
 import com.example.ui.screens.SettingsScreen
@@ -77,6 +78,15 @@ fun JarvisApp(viewModel: MainViewModel) {
 
     LaunchedEffect(Unit) {
         permissionLauncher.launch(Manifest.permission.RECORD_AUDIO)
+    }
+
+    // When in HOLOGRAPHIC_AOD mode, display pure immersive fullscreen quantum screensaver
+    if (currentScreen == JarvisScreen.HOLOGRAPHIC_AOD) {
+        HolographicAmbientScreen(
+            viewModel = viewModel,
+            modifier = Modifier.fillMaxSize()
+        )
+        return
     }
 
     if (isAuthDialogVisible) {
@@ -171,6 +181,7 @@ fun JarvisApp(viewModel: MainViewModel) {
                     JarvisScreen.MEMORY -> MemoryScreen(viewModel = viewModel)
                     JarvisScreen.NOTES -> NotesScreen(viewModel = viewModel)
                     JarvisScreen.SETTINGS -> SettingsScreen(viewModel = viewModel)
+                    JarvisScreen.HOLOGRAPHIC_AOD -> HolographicAmbientScreen(viewModel = viewModel)
                 }
             }
         }

@@ -242,6 +242,60 @@ fun SettingsScreen(
             }
         }
 
+        // Section 0.5: Holographic Quantum Ambient Mode (Always-On Display)
+        item {
+            Card(
+                colors = CardDefaults.cardColors(containerColor = JarvisCyan.copy(alpha = 0.08f)),
+                shape = RoundedCornerShape(12.dp),
+                border = androidx.compose.foundation.BorderStroke(1.dp, JarvisCyanGlow),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Box(
+                                modifier = Modifier
+                                    .size(10.dp)
+                                    .clip(CircleShape)
+                                    .background(JarvisCyanGlow)
+                            )
+                            Text(
+                                text = "ÉCRAN DE VEILLE HOLOGRAPHIQUE (AOD)",
+                                color = JarvisCyanGlow,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+
+                        Button(
+                            onClick = { viewModel.navigateTo(com.example.ui.components.JarvisScreen.HOLOGRAPHIC_AOD) },
+                            colors = ButtonDefaults.buttonColors(containerColor = JarvisCyan),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Text(
+                                text = "LANCER AOD",
+                                color = Color.Black,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Monospace
+                            )
+                        }
+                    }
+                    Text(
+                        text = "Affiche l'image holographique de JARVIS avec ses molécules quantiques en lévitation continue, horloge numérique, jauge de batterie et écoute vocale instantanée même en mode veille.",
+                        color = JarvisTextSecondary,
+                        fontSize = 11.sp,
+                        lineHeight = 15.sp
+                    )
+                }
+            }
+        }
+
         // Section 1: User Identity & Callsign
         item {
             Card(

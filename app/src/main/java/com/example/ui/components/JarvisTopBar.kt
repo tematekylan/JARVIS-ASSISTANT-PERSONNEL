@@ -16,12 +16,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Dashboard
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
@@ -58,7 +61,8 @@ enum class JarvisScreen {
     COMMAND_CENTER,
     MEMORY,
     NOTES,
-    SETTINGS
+    SETTINGS,
+    HOLOGRAPHIC_AOD
 }
 
 @Composable
@@ -174,6 +178,24 @@ fun JarvisTopBar(
                         }
                     }
 
+                    // Hologram AOD Quick Button
+                    IconButton(
+                        onClick = { onNavigate(JarvisScreen.HOLOGRAPHIC_AOD) },
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(JarvisCyan.copy(alpha = 0.15f))
+                            .border(1.dp, JarvisCyanGlow, RoundedCornerShape(8.dp))
+                            .testTag("btn_aod_quick_header")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.AutoAwesome,
+                            contentDescription = "Hologramme AOD (Écran de Veille)",
+                            tint = JarvisCyanGlow,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+
                     // New Chat Button
                     IconButton(
                         onClick = onNewChat,
@@ -208,6 +230,12 @@ fun JarvisTopBar(
                     icon = Icons.Default.Chat,
                     isSelected = currentScreen == JarvisScreen.CHAT,
                     onClick = { onNavigate(JarvisScreen.CHAT) }
+                )
+                NavTabButton(
+                    title = "Hologramme AOD",
+                    icon = Icons.Default.BlurOn,
+                    isSelected = currentScreen == JarvisScreen.HOLOGRAPHIC_AOD,
+                    onClick = { onNavigate(JarvisScreen.HOLOGRAPHIC_AOD) }
                 )
                 NavTabButton(
                     title = "Command Center",

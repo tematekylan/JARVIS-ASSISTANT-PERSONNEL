@@ -128,12 +128,12 @@ class MultiAiClient {
     private fun normalizeGeminiModel(rawModel: String): String {
         val lower = rawModel.lowercase().trim()
         return when {
+            lower.contains("3.5") -> "gemini-3.5-flash"
+            lower.contains("3.1") && lower.contains("pro") -> "gemini-3.1-pro-preview"
             lower.contains("2.5") && lower.contains("pro") -> "gemini-2.5-pro"
             lower.contains("2.5") -> "gemini-2.5-flash"
-            lower.contains("2.0") -> "gemini-2.0-flash"
-            lower.contains("1.5") && lower.contains("pro") -> "gemini-1.5-pro"
-            lower.contains("1.5") -> "gemini-1.5-flash"
-            else -> "gemini-2.0-flash"
+            lower.contains("flash-latest") -> "gemini-flash-latest"
+            else -> "gemini-2.5-flash"
         }
     }
 
@@ -192,7 +192,7 @@ class MultiAiClient {
         val requestBody = requestJson.toString().toRequestBody(jsonMediaType)
 
         // Try primary model, then fallback sequentially across valid versions
-        val modelCandidates = listOf(primaryModel, "gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.5-flash").distinct()
+        val modelCandidates = listOf(primaryModel, "gemini-2.5-flash", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-pro").distinct()
 
         var lastException: Exception? = null
         for (model in modelCandidates) {
