@@ -1,6 +1,6 @@
 {
-  "name": "JARVIS",
-  "description": "Next-Generation Futuristic AI Personal Assistant with Voice, Memory, Tools & Holographic Energy Core",
+  "name": "T-HACK AI",
+  "description": "T-HACKMAN AI - Your Personal Artificial Intelligence with futuristic HUD, dynamic Canvas AI Core, and voice engine",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }

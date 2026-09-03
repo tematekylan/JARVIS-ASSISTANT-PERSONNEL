@@ -105,13 +105,13 @@ data class UserSettingsEntity(
     val authProvider: String = "guest", // "google", "email", "phone", "guest"
     val isLoggedIn: Boolean = false,
     val securityClearanceLevel: String = "LEVEL 5 (COMMANDER)",
-    val assistantName: String = "JARVIS",
+    val assistantName: String = "T-HACK AI",
     val voiceLanguage: String = "fr", // "fr", "en", "auto"
     val ttsEnabled: Boolean = true,
     val autoSpeakResponses: Boolean = false,
     val speechRate: Float = 1.0f,
     val speechPitch: Float = 1.0f,
-    val aiModel: String = "gemini-2.5-flash",
+    val aiModel: String = "gemini-3.5-flash",
     val temperature: Float = 0.7f,
     val memoryEnabled: Boolean = true,
     val isDemoMode: Boolean = false,

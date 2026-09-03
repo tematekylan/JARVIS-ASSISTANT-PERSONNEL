@@ -133,7 +133,7 @@ class MultiAiClient {
             lower.contains("2.5") && lower.contains("pro") -> "gemini-2.5-pro"
             lower.contains("2.5") -> "gemini-2.5-flash"
             lower.contains("flash-latest") -> "gemini-flash-latest"
-            else -> "gemini-2.5-flash"
+            else -> "gemini-3.5-flash"
         }
     }
 

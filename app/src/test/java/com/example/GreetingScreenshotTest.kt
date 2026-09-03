@@ -24,7 +24,7 @@ class GreetingScreenshotTest {
   fun greeting_screenshot() {
     composeTestRule.setContent {
       JarvisTheme {
-        Text("JARVIS")
+        Text("T-HACK AI")
       }
     }
 

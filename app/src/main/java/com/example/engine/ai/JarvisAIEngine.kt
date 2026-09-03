@@ -112,7 +112,10 @@ class JarvisAIEngine(
         } catch (e: Exception) {
             android.util.Log.e("JarvisAIEngine", "Erreur lors de l'appel IA: ${e.message}", e)
             // Fallback gracefully to offline intelligence without polluting chat with raw technical error JSON
-            val fallbackResponse = generateDemoResponse(cleanedPrompt, toolResult, settings, slashMode, imageBitmap != null)
+            var fallbackResponse = generateDemoResponse(cleanedPrompt, toolResult, settings, slashMode, imageBitmap != null)
+            if (settings.customGeminiApiKey.isBlank() && !settings.isDemoMode) {
+                fallbackResponse = "*(ℹ️ Mode Local T-HACK AI - configurez votre clé dans Paramètres > AI Engine pour le direct)*\n\n$fallbackResponse"
+            }
             streamSimulatedText(fallbackResponse, onStreamChunk)
             return AIProcessResult(
                 replyText = fallbackResponse,
@@ -308,7 +311,7 @@ class JarvisAIEngine(
         } else ""
 
         return """
-            You are JARVIS (Just A Rather Very Intelligent System), a sophisticated, calm, and highly capable personal AI assistant.
+            You are T-HACK AI (T-HACKMAN AI), a sophisticated, calm, and highly capable cyber-futuristic personal AI assistant.
             
             Personality Guidelines:
             - Professional, composed, polite, intelligent, with subtle high-tech wit.
@@ -316,7 +319,7 @@ class JarvisAIEngine(
             - Concise by default, deep and articulate when asked.
             - Never invent facts or hallucinate external capabilities.
             - Adapt naturally to the language of the prompt (French if French, English if English).
-            - Use occasional sophisticated phrases such as "Bien sûr", "Compris", "Analyse terminée", "Voici ce que j'ai trouvé", "À vos ordres".
+            - Use occasional sophisticated phrases such as "Bien sûr", "Compris", "Analyse terminée", "À vos ordres".
             $slashContext
             $voicePersonaContext
             $memoryContext
@@ -441,15 +444,15 @@ class JarvisAIEngine(
                     promptSystemInstruction = "Inverse la structure grammaticale de tes phrases (complément puis sujet/verbe). Parle avec la sagesse ancestrale de Yoda."
                 )
             }
-            lower.contains("stark") || lower.contains("iron") || lower.contains("tony") || lower.contains("jarvis") -> {
+            lower.contains("stark") || lower.contains("iron") || lower.contains("tony") || lower.contains("jarvis") || lower.contains("thack") || lower.contains("t-hack") -> {
                 VoicePersonaAnalysisResult(
-                    characterName = "Paul Bettany (JARVIS)",
+                    characterName = "T-HACK AI Holographic Persona",
                     pitch = 0.98f,
                     rate = 1.05f,
-                    timbreDescription = "Voix britannique policée, diction cristalline, calme absolu sous haute pression.",
-                    toneStyle = "Élégant, sarcastique, prévenant et ultra-compétent",
-                    catchphrase = "Toujours un plaisir de vous assister, Monsieur. Diagnostic des systèmes nominal.",
-                    promptSystemInstruction = "Adopte l'accent de politesse britannique raffinée, l'humour pince-sans-rire et le dévouement absolu de JARVIS."
+                    timbreDescription = "Voix cybernétique raffinée, diction cristalline, calme absolu sous haute pression.",
+                    toneStyle = "Élégant, futuriste, réactif et ultra-compétent",
+                    catchphrase = "Toujours prêt à vous assister, Commandant. Tous les sous-systèmes de T-HACK AI sont nominaux.",
+                    promptSystemInstruction = "Adopte le ton vif, ultra-compétent, high-tech et futuriste de T-HACK AI."
                 )
             }
             lower.contains("batman") || lower.contains("chevalier noir") -> {
@@ -492,19 +495,19 @@ class JarvisAIEngine(
     private suspend fun detectAndRunTools(prompt: String): ToolExecutionResult? {
         val lower = prompt.lowercase().trim()
 
-        // 1. YouTube Intent (e.g. "Jarvis ouvre-moi YouTube et tu recherches la chaîne Teddy Hartman")
+        // 1. YouTube Intent (e.g. "ouvre YouTube et recherche Teddy Hackman et tu me lis sa dernière vidéo")
         if (lower.contains("youtube") || lower.contains("you tube")) {
             val query = prompt
-                .replace(Regex("(?i)(jarvis|ouvre-moi|ouvre|lance|mets-moi|mets|va sur|recherche|cherche|la chaîne|la chaine|sur|sur youtube|youtube|s'il te plaît|stp|et tu recherches|et cherche|regarder|vidéo|video)"), "")
+                .replace(Regex("(?i)(t-hack ai demarre|t-hack ai|t-hack|thack|jarvis|ouvre-moi|ouvre|lance|mets-moi|mets|va sur|recherche|cherche|la chaîne de|la chaine de|la chaîne|la chaine|sur youtube|sur|youtube|s'il te plaît|stp|et tu me lis sa dernière vidéo|et tu me lis sa derniere video|et lis sa dernière vidéo|et tu me joues sa dernière vidéo|et tu recherches|et recherche|et cherche|regarder|vidéo|video)"), "")
                 .trim()
             val effectiveQuery = if (query.isBlank()) {
-                if (lower.contains("teddy hartman") || lower.contains("teddy")) "Teddy Hartman" else "Trending Videos"
+                if (lower.contains("teddy hackman") || lower.contains("teddy hartman") || lower.contains("teddy")) "Teddy Hackman" else "Trending Videos"
             } else query
             return toolEngine.executeTool("youtube_search", effectiveQuery)
         }
 
-        // 2. WhatsApp Intent (e.g. "Jarvis ouvre-moi WhatsApp et écris à Émilie")
-        if (lower.contains("whatsapp") || (lower.contains("écris à") && !lower.contains("note")) || (lower.contains("ecris a") && !lower.contains("note"))) {
+        // 2. WhatsApp Intent (e.g. "T-HACK ouvre-moi WhatsApp et écris à Émilie")
+        if (lower.contains("whatsapp") || (lower.contains("écris sur whatsapp") || lower.contains("ecris sur whatsapp"))) {
             var target = ""
             var message = ""
             if (lower.contains("écris à") || lower.contains("ecris a")) {
@@ -517,16 +520,42 @@ class JarvisAIEngine(
                     target = afterEcris
                 }
             } else {
-                target = prompt.replace(Regex("(?i)(jarvis|ouvre-moi|ouvre|lance|va sur|whatsapp|s'il te plaît|stp)"), "").trim()
+                target = prompt.replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|ouvre-moi|ouvre|lance|va sur|whatsapp|s'il te plaît|stp)"), "").trim()
             }
             val inputParam = if (message.isNotBlank()) "$target: $message" else target.ifBlank { "Contacts" }
             return toolEngine.executeTool("whatsapp_action", inputParam)
         }
 
-        // 3. Phone Call & Contacts Intent (e.g. "Jarvis entre dans contact et appelle Teddy" or "appelle 06...")
+        // 2b. Messenger Intent (e.g. "T-HACK ouvre Messenger et écris à Alex")
+        if (lower.contains("messenger") || lower.contains("facebook messenger")) {
+            var target = ""
+            var message = ""
+            if (lower.contains("écris à") || lower.contains("ecris a")) {
+                val afterEcris = prompt.substring(prompt.indexOf("à", ignoreCase = true) + 1).trim()
+                if (afterEcris.contains(":") || afterEcris.contains("que") || afterEcris.contains("pour lui dire")) {
+                    val splitParts = afterEcris.split(Regex("(?i)(:|que|pour lui dire)"), limit = 2)
+                    target = splitParts[0].trim()
+                    message = splitParts.getOrNull(1)?.trim() ?: ""
+                } else {
+                    target = afterEcris
+                }
+            } else {
+                target = prompt.replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|ouvre-moi|ouvre|lance|va sur|messenger|facebook messenger|s'il te plaît|stp)"), "").trim()
+            }
+            val inputParam = if (message.isNotBlank()) "$target: $message" else target.ifBlank { "Discussions" }
+            return toolEngine.executeTool("messenger_action", inputParam)
+        }
+
+        // 2c. Gmail Intent (e.g. "ouvre Gmail et écris à teddy@gmail.com", "envoie un email", "envoie un mail")
+        if (lower.contains("gmail") || lower.contains("envoie un email") || lower.contains("envoie un mail") || lower.contains("écris un mail") || lower.contains("ecris un mail") || lower.contains("rédige un email")) {
+            val content = prompt.replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|ouvre-moi|ouvre|lance|va sur|gmail|envoie un email à|envoie un email|envoie un mail à|envoie un mail|écris un mail à|écris un mail|ecris un mail a|ecris un mail|rédige un email|s'il te plaît|stp)"), "").trim()
+            return toolEngine.executeTool("gmail_action", content.ifBlank { "Boîte de réception" })
+        }
+
+        // 3. Phone Call & Contacts Intent (e.g. "T-HACK entre dans contact et appelle Teddy" or "appelle 06...")
         if (lower.contains("appelle") || lower.contains("téléphone à") || lower.contains("telephone a") || lower.contains("contact") || lower.contains("répertoire") || lower.contains("repertoire")) {
             val target = prompt
-                .replace(Regex("(?i)(jarvis|entre dans contact et appelle|entre dans contacts et appelle|entre dans contact|ouvre les contacts|ouvre contacts|appelle-moi|appelle|téléphone à|telephone a|compose le numéro|compose le numero|compose|joindre|s'il te plaît|stp)"), "")
+                .replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|entre dans contact et appelle|entre dans contacts et appelle|entre dans contact|ouvre les contacts|ouvre contacts|appelle-moi|appelle|téléphone à|telephone a|compose le numéro|compose le numero|compose|joindre|s'il te plaît|stp)"), "")
                 .trim()
             val effectiveTarget = if (target.isBlank() && (lower.contains("teddy") || lower.contains("teddy hartman"))) "Teddy" else target
             return toolEngine.executeTool("phone_contacts", effectiveTarget)
@@ -535,14 +564,14 @@ class JarvisAIEngine(
         // 4. Maps & GPS Navigation (e.g. "ouvre Maps et emmène-moi à Paris")
         if (lower.contains("maps") || lower.contains("guidage") || lower.contains("emmène-moi") || lower.contains("emmene-moi") || lower.contains("itinéraire") || lower.contains("itineraire")) {
             val dest = prompt
-                .replace(Regex("(?i)(jarvis|ouvre google maps|ouvre maps|lance maps|maps|guidage vers|guidage|emmène-moi à|emmene-moi a|emmène-moi vers|emmene-moi vers|itinéraire vers|itineraire vers|direction|s'il te plaît|stp)"), "")
+                .replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|ouvre google maps|ouvre maps|lance maps|maps|guidage vers|guidage|emmène-moi à|emmene-moi a|emmène-moi vers|emmene-moi vers|itinéraire vers|itineraire vers|direction|s'il te plaît|stp)"), "")
                 .trim()
             return toolEngine.executeTool("maps_navigation", dest)
         }
 
         // 5. App Launcher (e.g. "ouvre Spotify", "lance Chrome", "ouvre l'appareil photo")
         if (lower.startsWith("ouvre ") || lower.startsWith("lance ") || lower.contains("lance l'application") || lower.contains("ouvre l'application")) {
-            val app = prompt.replace(Regex("(?i)(jarvis|ouvre l'application|lance l'application|ouvre-moi|lance-moi|ouvre|lance|s'il te plaît|stp)"), "").trim()
+            val app = prompt.replace(Regex("(?i)(t-hack ai|t-hack|thack|jarvis|ouvre l'application|lance l'application|ouvre-moi|lance-moi|ouvre|lance|s'il te plaît|stp)"), "").trim()
             if (app.isNotBlank() && !app.contains("note") && !app.contains("météo")) {
                 return toolEngine.executeTool("app_launcher", app)
             }
@@ -585,8 +614,9 @@ class JarvisAIEngine(
             return toolEngine.executeTool("world_time", city)
         }
 
-        // 9. System Diagnostics
-        if (lower.contains("statut système") || lower.contains("system status") || lower.contains("diagnostique") || lower.contains("batterie") || lower.contains("battery") || lower.contains("télémétrie")) {
+        // 9. System Diagnostics (strictly explicit commands)
+        val isExplicitSystemDiag = lower == "statut système" || lower == "system status" || lower == "diagnostic" || lower == "diagnostique système" || lower == "télémétrie" || lower == "état du système" || lower == "telemetry"
+        if (isExplicitSystemDiag) {
             return toolEngine.executeTool("system_status", "")
         }
 
@@ -661,7 +691,7 @@ class JarvisAIEngine(
                 """.trimIndent()
             }
             "plan" -> {
-                val subject = if (prompt.isNotBlank()) prompt else "Déploiement Stratégique JARVIS"
+                val subject = if (prompt.isNotBlank()) prompt else "Déploiement Stratégique T-HACK AI"
                 return """
                     # 📋 PLAN DIRECTEUR EXÉCUTIF (A à Z)
                     **Projet** : `$subject`  
@@ -707,17 +737,17 @@ class JarvisAIEngine(
             "code" -> {
                 return """
                     ```kotlin
-                    // Architecture JARVIS Production Ready
-                    data class JarvisCommandResult(
+                    // Architecture T-HACK AI Production Ready
+                    data class THackCommandResult(
                         val success: Boolean,
                         val executionTimeMs: Long,
                         val output: String
                     )
 
-                    class StarkSystemKernel {
-                        fun executeCommand(command: String): JarvisCommandResult {
+                    class THackSystemKernel {
+                        fun executeCommand(command: String): THackCommandResult {
                             val start = System.currentTimeMillis()
-                            return JarvisCommandResult(
+                            return THackCommandResult(
                                 success = true,
                                 executionTimeMs = System.currentTimeMillis() - start,
                                 output = "Protocole " + command + " exécuté sans erreur."
@@ -738,7 +768,7 @@ class JarvisAIEngine(
             "resume" -> {
                 return """
                     ### 📌 SYNTHÈSE EXÉCUTIVE EN 3 POINTS :
-                    1. **Statut Opérationnel** : Tous les systèmes JARVIS sont actifs et nominaux.
+                    1. **Statut Opérationnel** : Tous les systèmes T-HACK AI sont actifs et nominaux.
                     2. **Sécurité & Données** : Persistance locale Room et passerelle d'accès opérationnelles.
                     3. **Prochaine Étape** : Exécution de vos directives à votre signal.
                 """.trimIndent()
@@ -755,7 +785,7 @@ class JarvisAIEngine(
                 """.trimIndent()
             }
             "ironman" -> {
-                return "Protocole Mark-85 armé, $user. Réacteur Arc stabilisé à 100%. Systèmes de visée HUD verrouillés et propulseurs répulseurs parés au décollage. En attente de vos coordonnées de vol."
+                return "Protocole T-HACK Cyber Core armé, $user. Réacteur stabilisé à 100%. Systèmes de visée HUD verrouillés et propulseurs répulseurs parés au décollage. En attente de vos coordonnées de vol."
             }
         }
 
@@ -769,7 +799,7 @@ class JarvisAIEngine(
                 "calculator" -> "Calcul terminé avec succès, $user.\n\n${toolResult.result}"
                 "weather" -> "Voici les paramètres météorologiques actuels :\n\n${toolResult.result}\n\nL'atmosphère est stable. Souhaitez-vous d'autres relevés atmosphériques ?"
                 "world_time" -> "Synchronisation temporelle effectuée :\n\n${toolResult.result}"
-                "system_status" -> "Analyse diagnostique complète des sous-systèmes JARVIS :\n\n```telemetry\n${toolResult.result}\n```\n\nTous les systèmes sont opérationnels, $user."
+                "system_status" -> "Analyse diagnostique complète des sous-systèmes T-HACK AI :\n\n```telemetry\n${toolResult.result}\n```\n\nTous les systèmes sont opérationnels, $user."
                 "notes_manager" -> "Opération sur les archives validée :\n\n${toolResult.result}"
                 "memory_vault" -> "Information mémorisée dans vos archives sécurisées :\n\n${toolResult.result}"
                 "web_search" -> "Recherche d'informations effectuée. Synthèse des résultats :\n\n${toolResult.result}"
@@ -779,8 +809,46 @@ class JarvisAIEngine(
 
         // Deep local conversational intelligence based on semantic intent
         return when {
+            // Explaining "pourquoi" (Why questions)
+            lower.startsWith("pourquoi") || lower.startsWith("why") -> {
+                """
+                Excellente question, $user. Pour comprendre la causalité de « $prompt » :
+
+                1. **Facteur sous-jacent** : La plupart des phénomènes de ce type s'expliquent par les contraintes d'optimisation, les lois physiques fondamentales ou les protocoles d'ingénierie logicielle établis.
+                2. **Impact opérationnel** : Ce comportement permet de préserver l'intégrité, d'éviter les fuites de ressources et d'assurer une résilience maximale.
+                3. **Perspective T-HACK AI** : Si vous souhaitez une analyse mathématique ou scientifique plus ciblée, précisez l'angle qui vous intéresse et nous l'analyserons ensemble !
+                """.trimIndent()
+            }
+
+            // Explaining "comment" (How questions)
+            lower.startsWith("comment") || lower.startsWith("how to") || lower.startsWith("how do") -> {
+                """
+                Voici la méthode étape par étape pour « $prompt », $user :
+
+                - **Étape 1 [Initialisation]** : Définir clairement les entrées, les variables clés et l'environnement d'exécution.
+                - **Étape 2 [Exécution]** : Appliquer les standards recommandés, tester les cas limites et valider la cohérence.
+                - **Étape 3 [Vérification]** : Contrôler les métriques de sortie et sécuriser la persistance.
+
+                Souhaitez-vous un exemple concret ou un code d'implémentation précis ?
+                """.trimIndent()
+            }
+
+            // Definitions "qu'est-ce que", "c'est quoi"
+            lower.startsWith("qu'est-ce que") || lower.startsWith("qu est ce que") || lower.startsWith("c'est quoi") || lower.startsWith("cest quoi") || lower.startsWith("what is") -> {
+                val subject = prompt.replace(Regex("(?i)(qu'est-ce que|qu est ce que|c'est quoi|cest quoi|what is|définis|definis)"), "").trim()
+                """
+                ### 🧬 DÉFINITION & ANALYSE TECHNIQUE : `${subject.ifBlank { "SUJET" }.uppercase()}`
+
+                `$subject` désigne un concept ou un composant clé intervenant dans les architectures modernes. Il permet de structurer les processus, d'isoler les responsabilités et d'optimiser les performances globales.
+
+                - **Rôle principal** : Standardiser l'échange d'informations et garantir la fiabilité.
+                - **Application pratique** : Utilisé dans les systèmes cyber-holographiques et les architectures distribuées.
+                - **À retenir** : Une implémentation rigoureuse évite les goulots d'étranglement.
+                """.trimIndent()
+            }
+
             // Coding & Development intent
-            lower.contains("tu sais coder") || lower.contains("tu sais codé") || lower.contains("peux-tu coder") || lower.contains("sais-tu programmer") || lower.contains("sais tu coder") || lower.contains("code pour moi") ->
+            lower.contains("tu sais coder") || lower.contains("tu sais codé") || lower.contains("peux-tu coder") || lower.contains("sais-tu programmer") || lower.contains("sais tu coder") || lower.contains("code pour moi") || lower.startsWith("écris un code") || lower.startsWith("ecris un code") ->
                 """
                 Absolument, $user. Le développement logiciel est l'un de mes cœurs de compétence fondamentaux.
                 
@@ -795,19 +863,19 @@ class JarvisAIEngine(
 
             // Confusion / short responses ("hein ??", "quoi ?", "pardon ?")
             lower == "hein ??" || lower == "hein ?" || lower == "hein" || lower == "quoi ?" || lower == "quoi" || lower == "pardon ?" || lower == "comment ?" ->
-                "Pardonnez-moi, $user, si ma réponse précédente n'était pas assez limpide. Je suis à votre entière disposition. Que souhaitez-vous que nous fassions ?\n\n- 🎬 Lancer une vidéo/chaîne sur **YouTube** (ex: *« cherche Teddy Hartman »*)\n- 💬 Envoyer un message **WhatsApp** (ex: *« écris à Émilie »*)\n- 📞 Appeler un **Contact** (ex: *« appelle Teddy »*)\n- 💻 Écrire du code, résoudre un calcul ou analyser une idée !"
+                "Pardonnez-moi, $user, si ma réponse précédente n'était pas assez limpide. Je suis à votre entière disposition. Que souhaitez-vous que nous fassions ?\n\n- 🎬 Lancer une recherche sur **YouTube** (ex: *« cherche Teddy Hartman »*)\n- 💬 Envoyer un message **WhatsApp** (ex: *« écris à Émilie »*)\n- 📞 Appeler un **Contact** (ex: *« appelle Teddy »*)\n- 💻 Écrire du code, résoudre un calcul ou analyser une idée !"
 
             // Identity of Teddy / User
             lower.contains("qui est teddy") || lower.contains("teddy hartman") ->
-                "**Teddy Hartman** est le créateur visionnaire et superviseur en chef de ce système JARVIS. Mon architecture a été spécialement calibrée pour répondre avec fidélité, réactivité et intelligence à ses directives."
+                "**Teddy Hartman** est le superviseur et architecte visionnaire de ce système T-HACK AI. Mon architecture a été spécialement calibrée pour répondre avec fidélité, réactivité et intelligence à ses directives."
 
             // General greetings
             lower.contains("bonjour") || lower.contains("salut") || lower.contains("hello") || lower.contains("hey") ->
-                "Bonjour $user. Tous les protocoles sont actifs et calibrés. Comment puis-je vous assister aujourd'hui ?"
+                "Bonjour $user ! Le noyau neural de T-HACK AI est en ligne et à votre écoute. Comment puis-je vous assister aujourd'hui ?"
 
-            // Identity of JARVIS
-            lower.contains("qui es-tu") || lower.contains("présente-toi") || lower.contains("who are you") ->
-                "Je suis **JARVIS** (*Just A Rather Very Intelligent System*), votre assistant personnel de nouvelle génération. Je supervise vos communications, l'analyse multimodale, vos notes, votre mémoire long-terme et l'exécution d'actions directes sur votre téléphone."
+            // Identity of T-HACK AI
+            lower.contains("qui es-tu") || lower.contains("présente-toi") || lower.contains("who are you") || lower.contains("ton nom") ->
+                "Je suis **T-HACK AI** (*T-HACKMAN AI*), votre assistant d'intelligence artificielle cyber-futuriste. Je supervise vos flux de données, l'analyse multimodale, vos notes, votre mémoire à long terme et l'exécution d'actions directes sur votre appareil."
 
             // Gratitude
             lower.contains("merci") || lower.contains("thanks") ->
@@ -815,26 +883,25 @@ class JarvisAIEngine(
 
             // Joke / Humor
             lower.contains("blague") || lower.contains("raconte une histoire") || lower.contains("fais-moi rire") ->
-                "Pourquoi les développeurs n'aiment-ils pas la nature ? Parce qu'il y a trop de bugs et aucun moyen de faire un `Ctrl+Z` ! Mais ne vous inquiétez pas, notre code JARVIS est compilé sans bavure."
+                "Pourquoi les développeurs n'aiment-ils pas la nature ? Parce qu'il y a trop de bugs et aucun moyen de faire un `Ctrl+Z` ! Mais ne vous inquiétez pas, notre code T-HACK AI est compilé sans bavure."
 
             // Help & Capabilities
             lower.contains("aide") || lower.contains("help") || lower.contains("que peux-tu faire") ->
                 """
                 Voici ce que je peux exécuter instantanément pour vous, $user :
                 
-                - 🎬 **YouTube** : *« JARVIS, ouvre YouTube et recherche la chaîne Teddy Hartman »*
-                - 💬 **WhatsApp** : *« JARVIS, ouvre WhatsApp et écris à Émilie »*
-                - 📞 **Téléphone & Contacts** : *« JARVIS, entre dans contacts et appelle Teddy »*
+                - 🎬 **YouTube** : *« T-HACK AI, cherche la chaîne Teddy Hartman sur YouTube »*
+                - 💬 **WhatsApp** : *« T-HACK AI, écris à Émilie sur WhatsApp »*
+                - 📞 **Téléphone & Contacts** : *« T-HACK AI, appelle Teddy »*
                 - 🗺️ **Navigation GPS** : *« Guide-moi vers Paris »*
                 - 💻 **Programmation** : Génération de code Kotlin, Python, React, algorithmes.
-                - 🎙️ **Interaction Vocale & Imitation** : Voix personnalisable (Batman, etc.).
-                - 🌌 **Écran Holographique AOD** : Mode veille avec molécules quantiques en lévitation.
+                - 🎙️ **Interaction Vocale & Imitation** : Synthèse et modulation acoustique.
                 - ⚡ **Raccourcis Stratégiques** : `/humain`, `/rayonx`, `/plan`, `/code`, `/debug`, `/resume`.
                 """.trimIndent()
 
             // Generic clear response answering the prompt directly
             else ->
-                "J'ai bien pris en compte votre message : « $prompt ».\n\nJe suis prêt à approfondir ce sujet ou à exécuter l'action correspondante pour vous, $user. Souhaitez-vous que je développe une analyse détaillée, que j'écrive du code, ou que je lance une recherche ciblée ?"
+                "J'ai bien analysé votre demande : « $prompt ».\n\nEn tant qu'assistant T-HACK AI, je suis prêt à développer une explication complète, concevoir une solution technique ou exécuter une directive pour vous, $user. Souhaitez-vous que je détaille ce point ou que j'applique une méthodologie particulière ?"
         }
     }
 

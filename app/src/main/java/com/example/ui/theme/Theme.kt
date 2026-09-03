@@ -31,7 +31,7 @@ private val JarvisDarkColorScheme = darkColorScheme(
 )
 
 @Composable
-fun JarvisTheme(
+fun THackTheme(
     content: @Composable () -> Unit
 ) {
     MaterialTheme(
@@ -39,4 +39,11 @@ fun JarvisTheme(
         typography = Typography,
         content = content
     )
+}
+
+@Composable
+fun JarvisTheme(
+    content: @Composable () -> Unit
+) {
+    THackTheme(content = content)
 }

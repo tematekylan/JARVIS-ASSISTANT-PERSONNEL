@@ -41,13 +41,15 @@ class JarvisToolEngine(
     val availableTools = listOf(
         ToolDefinition("youtube_search", "Recherche et ouvre une vidéo ou chaîne sur YouTube", "query: string", "play_circle"),
         ToolDefinition("whatsapp_action", "Ouvre WhatsApp et initie une conversation ou compose un message", "target: string, message: string", "chat"),
+        ToolDefinition("messenger_action", "Ouvre Facebook Messenger et envoie un message ou ouvre une conversation", "target: string, message: string", "chat_bubble"),
+        ToolDefinition("gmail_action", "Ouvre Gmail pour rédiger un email avec destinataire, objet et contenu", "recipient: string, subject: string, body: string", "email"),
         ToolDefinition("phone_contacts", "Accède aux contacts et compose un appel téléphonique", "target: string", "call"),
         ToolDefinition("app_launcher", "Lance une application installée sur le smartphone (Spotify, Maps, Chrome, Camera...)", "appName: string", "apps"),
         ToolDefinition("maps_navigation", "Lance le guidage GPS ou recherche un lieu sur Google Maps", "destination: string", "navigation"),
         ToolDefinition("calculator", "Calculates mathematical and arithmetic expressions", "expression: string", "calculate"),
         ToolDefinition("weather", "Gets meteorological forecast and conditions for a city", "city: string", "cloud"),
         ToolDefinition("world_time", "Gives exact current time and date for a city or timezone", "city: string", "schedule"),
-        ToolDefinition("system_status", "Inspects device battery, network, memory and JARVIS subsystems", "none", "memory"),
+        ToolDefinition("system_status", "Inspects device battery, network, memory and T-HACK AI subsystems", "none", "memory"),
         ToolDefinition("notes_manager", "Creates, searches or lists user notes and tasks", "action: 'create'|'search'|'list', text: string", "note_add"),
         ToolDefinition("memory_vault", "Stores or recalls personalized facts from long-term memory", "action: 'save'|'recall', content: string", "psychology"),
         ToolDefinition("web_search", "Queries external live knowledge and generates sources", "query: string", "travel_explore")
@@ -65,6 +67,12 @@ class JarvisToolEngine(
                 }
                 "whatsapp_action", "whatsapp" -> {
                     resultText = handleWhatsApp(input)
+                }
+                "messenger_action", "messenger", "facebook_messenger" -> {
+                    resultText = handleMessenger(input)
+                }
+                "gmail_action", "gmail", "email", "mail" -> {
+                    resultText = handleGmail(input)
                 }
                 "phone_contacts", "phone", "contacts", "call" -> {
                     resultText = handlePhoneAndContacts(input)
@@ -202,6 +210,124 @@ class JarvisToolEngine(
         }
     }
 
+    private fun handleMessenger(input: String): String {
+        val trimmed = input.trim()
+        var contact = ""
+        var msg = ""
+
+        if (trimmed.contains(":") || trimmed.contains("->")) {
+            val sep = if (trimmed.contains("->")) "->" else ":"
+            val parts = trimmed.split(sep, limit = 2)
+            contact = parts[0].trim()
+            msg = parts.getOrNull(1)?.trim() ?: ""
+        } else {
+            val lower = trimmed.lowercase()
+            if (lower.contains("écris à") || lower.contains("ecris a")) {
+                val rem = trimmed.substring(trimmed.indexOf("à", ignoreCase = true) + 1).trim()
+                contact = rem
+            } else {
+                contact = trimmed
+            }
+        }
+
+        return try {
+            val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                setPackage("com.facebook.orca")
+                if (msg.isNotBlank()) {
+                    putExtra(Intent.EXTRA_TEXT, msg)
+                }
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(sendIntent)
+            if (contact.isNotBlank()) {
+                "Messenger ouvert pour envoyer un message à « $contact » ${if (msg.isNotBlank()) ": \"$msg\"" else ""}."
+            } else {
+                "Messenger ouvert."
+            }
+        } catch (_: Exception) {
+            try {
+                val launchIntent = context.packageManager.getLaunchIntentForPackage("com.facebook.orca")
+                if (launchIntent != null) {
+                    launchIntent.flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    context.startActivity(launchIntent)
+                    "Application Messenger lancée avec succès."
+                } else {
+                    val webIntent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.messenger.com/")).apply {
+                        flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                    }
+                    context.startActivity(webIntent)
+                    "Messenger Web ouvert dans le navigateur."
+                }
+            } catch (e2: Exception) {
+                "Messenger n'a pas pu être lancé : ${e2.localizedMessage}"
+            }
+        }
+    }
+
+    private fun handleGmail(input: String): String {
+        val trimmed = input.trim()
+        var recipient = ""
+        var subject = "Message de T-HACK AI"
+        var body = ""
+
+        // Parse format e.g. "destinataire@mail.com : Sujet : Corps"
+        if (trimmed.contains(":")) {
+            val parts = trimmed.split(":")
+            recipient = parts.getOrNull(0)?.trim() ?: ""
+            if (parts.size > 2) {
+                subject = parts[1].trim()
+                body = parts.drop(2).joinToString(":").trim()
+            } else if (parts.size == 2) {
+                body = parts[1].trim()
+            }
+        } else {
+            val lower = trimmed.lowercase()
+            if (lower.contains("à") || lower.contains("a ")) {
+                val afterA = trimmed.substring(trimmed.indexOf("à", ignoreCase = true).coerceAtLeast(trimmed.indexOf("a ", ignoreCase = true)) + 1).trim()
+                recipient = afterA
+            } else {
+                recipient = trimmed
+            }
+        }
+
+        return try {
+            val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                data = Uri.parse("mailto:")
+                if (recipient.isNotBlank() && recipient.contains("@")) {
+                    putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                }
+                putExtra(Intent.EXTRA_SUBJECT, subject)
+                if (body.isNotBlank()) {
+                    putExtra(Intent.EXTRA_TEXT, body)
+                }
+                setPackage("com.google.android.gm")
+                flags = Intent.FLAG_ACTIVITY_NEW_TASK
+            }
+            context.startActivity(emailIntent)
+            "Gmail ouvert pour rédiger un email ${if (recipient.isNotBlank()) "à « $recipient »" else ""}."
+        } catch (_: Exception) {
+            try {
+                // Fallback to any email client
+                val fallbackIntent = Intent(Intent.ACTION_SENDTO).apply {
+                    data = Uri.parse("mailto:")
+                    if (recipient.isNotBlank() && recipient.contains("@")) {
+                        putExtra(Intent.EXTRA_EMAIL, arrayOf(recipient))
+                    }
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                    if (body.isNotBlank()) {
+                        putExtra(Intent.EXTRA_TEXT, body)
+                    }
+                    flags = Intent.FLAG_ACTIVITY_NEW_TASK
+                }
+                context.startActivity(fallbackIntent)
+                "Client email ouvert pour rédiger le message ${if (recipient.isNotBlank()) "à « $recipient »" else ""}."
+            } catch (e2: Exception) {
+                "Impossible d'ouvrir Gmail : ${e2.localizedMessage}"
+            }
+        }
+    }
+
     private fun handlePhoneAndContacts(input: String): String {
         val target = input.trim()
         return try {
@@ -235,13 +361,22 @@ class JarvisToolEngine(
         val packageName = when {
             name.contains("youtube") -> "com.google.android.youtube"
             name.contains("whatsapp") -> "com.whatsapp"
+            name.contains("messenger") -> "com.facebook.orca"
+            name.contains("gmail") || name.contains("mail") || name.contains("courriel") -> "com.google.android.gm"
             name.contains("spotify") -> "com.spotify.music"
-            name.contains("chrome") -> "com.android.chrome"
-            name.contains("maps") -> "com.google.android.apps.maps"
+            name.contains("chrome") || name.contains("navigateur") -> "com.android.chrome"
+            name.contains("maps") || name.contains("plan") || name.contains("gps") -> "com.google.android.apps.maps"
+            name.contains("instagram") || name.contains("insta") -> "com.instagram.android"
+            name.contains("telegram") -> "org.telegram.messenger"
+            name.contains("tiktok") -> "com.zhiliaoapp.musically"
+            name.contains("twitter") || name == "x" || name.contains("réseau x") -> "com.twitter.android"
+            name.contains("netflix") -> "com.netflix.mediaclient"
+            name.contains("play store") || name.contains("playstore") -> "com.android.vending"
             name.contains("camera") || name.contains("photo") || name.contains("appareil") -> null // Use Action
             name.contains("gallery") || name.contains("galerie") || name.contains("photos") -> "com.google.android.apps.photos"
             name.contains("calculator") || name.contains("calculatrice") -> "com.google.android.calculator"
             name.contains("clock") || name.contains("horloge") || name.contains("alarme") -> "com.google.android.deskclock"
+            name.contains("paramètres") || name.contains("parametres") || name.contains("settings") || name.contains("configuration") -> "com.android.settings"
             else -> null
         }
 
@@ -422,7 +557,7 @@ class JarvisToolEngine(
 
         return when {
             action.contains("create") || action.contains("add") -> {
-                val title = if (text.length > 30) text.take(30) + "..." else text.ifBlank { "Note from JARVIS" }
+                val title = if (text.length > 30) text.take(30) + "..." else text.ifBlank { "Note from T-HACK AI" }
                 repository.saveNote(title = title, content = text)
                 "Note recorded successfully: '$title'"
             }

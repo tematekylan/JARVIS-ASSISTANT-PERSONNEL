@@ -37,7 +37,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val voiceEngine = JarvisVoiceEngine(application)
     val incidentEngine = com.example.engine.incident.JarvisIncidentEngine(application, repository)
 
-    private val _currentScreen = MutableStateFlow(JarvisScreen.CHAT)
+    private val _currentScreen = MutableStateFlow(JarvisScreen.HOME)
     val currentScreen: StateFlow<JarvisScreen> = _currentScreen.asStateFlow()
 
     private val _coreState = MutableStateFlow(JarvisCoreState.IDLE)
@@ -198,20 +198,24 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun sendMessage(text: String) {
+        sendUserMessage(text, null, null)
+    }
+
     fun sendUserMessage(text: String, bitmap: Bitmap?, imageUri: String? = null) {
         if (text.isBlank() && bitmap == null) return
 
         viewModelScope.launch {
             var conv = _currentConversation.value
             if (conv == null) {
-                val title = if (text.length > 25) text.take(25) + "..." else text.ifBlank { "Session JARVIS" }
+                val title = if (text.length > 25) text.take(25) + "..." else text.ifBlank { "Session T-HACK AI" }
                 val newId = repository.createConversation(title)
                 conv = repository.getConversation(newId)
                 _currentConversation.value = conv
                 selectConversation(newId)
             } else if (_messages.value.isEmpty()) {
                 // Update title based on first query
-                val title = if (text.length > 25) text.take(25) + "..." else text.ifBlank { "Session JARVIS" }
+                val title = if (text.length > 25) text.take(25) + "..." else text.ifBlank { "Session T-HACK AI" }
                 repository.updateConversation(conv.copy(title = title))
             }
 
@@ -603,8 +607,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun signInWithGoogle(name: String, email: String) {
         viewModelScope.launch {
-            val cleanEmail = email.trim().lowercase().ifBlank { "stark.commander@jarvis.ai" }
-            val cleanName = name.trim().ifBlank { "Tony Stark" }
+            val cleanEmail = email.trim().lowercase().ifBlank { "agent.commander@thack.ai" }
+            val cleanName = name.trim().ifBlank { "Agent T-HACK" }
 
             val existing = repository.getAccountByEmail(cleanEmail)
             val account = existing?.copy(

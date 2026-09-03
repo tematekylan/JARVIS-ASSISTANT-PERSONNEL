@@ -471,7 +471,7 @@ fun HolographicAmbientScreen(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "JARVIS // RÉPONSE EN DIRECT",
+                                text = "T-HACK AI // RÉPONSE EN DIRECT",
                                 color = JarvisCyanGlow,
                                 fontSize = 11.sp,
                                 fontFamily = FontFamily.Monospace,
@@ -498,7 +498,7 @@ fun HolographicAmbientScreen(
                     modifier = Modifier.padding(bottom = 12.dp)
                 )
                 Text(
-                    text = "Dites « Jarvis ouvre YouTube », « écris à Émilie sur WhatsApp » ou « appelle Teddy »",
+                    text = "Dites « T-HACK ouvre YouTube », « écris à Émilie sur WhatsApp » ou « appelle Teddy »",
                     color = JarvisTextMuted,
                     fontSize = 10.sp,
                     textAlign = TextAlign.Center,
@@ -537,7 +537,7 @@ fun HolographicAmbientScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Mic,
-                        contentDescription = "Parler à JARVIS",
+                        contentDescription = "Parler à T-HACK AI",
                         tint = if (isListening) Color.Black else JarvisCyan,
                         modifier = Modifier.size(22.dp)
                     )

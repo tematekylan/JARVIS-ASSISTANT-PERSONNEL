@@ -2,26 +2,36 @@ package com.example.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// JARVIS Futuristic Holographic Palette
-val JarvisCyan = Color(0xFF00F0FF)
-val JarvisCyanGlow = Color(0xFF7BEBFF)
-val JarvisCyanDark = Color(0xFF00838F)
+// T-HACKMAN AI / T-HACK AI Futuristic Holographic Cyber Palette
+val HackBgBlack = Color(0xFF030609)
+val HackBgSecondary = Color(0xFF070D12)
+val HackPanelDark = Color(0xFF0A1219)
+val HackCyanPrimary = Color(0xFF00E5FF)
+val HackCyanLight = Color(0xFF78F7FF)
+val HackCyanDark = Color(0xFF007C91)
+val HackBlueAccent = Color(0xFF0088FF)
+val HackTextPrimary = Color(0xFFE5FCFF)
+val HackTextSecondary = Color(0xFF6F9DA6)
+val HackSuccess = Color(0xFF31F5A3)
+val HackWarning = Color(0xFFFFB547)
+val HackError = Color(0xFFFF4660)
 
-val JarvisBlue = Color(0xFF2589FE)
+// Backward-compatible alias tokens
+val JarvisCyan = HackCyanPrimary
+val JarvisCyanGlow = HackCyanLight
+val JarvisCyanDark = HackCyanDark
+val JarvisBlue = HackBlueAccent
 val JarvisBlueGlow = Color(0xFF70B6FF)
-val JarvisDeepBlue = Color(0xFF0A1E3D)
-
-val JarvisEmerald = Color(0xFF00FFA3)
-val JarvisAmber = Color(0xFFFFB703)
-val JarvisCrimson = Color(0xFFFF3B5C)
-
-val JarvisBgVoid = Color(0xFF050811)
-val JarvisBgSurface = Color(0xFF0B1326)
-val JarvisBgCard = Color(0xFF101B33)
-val JarvisBgCardElevated = Color(0xFF162544)
-val JarvisBorderGlow = Color(0xFF1E3A5F)
-val JarvisBorderBright = Color(0xFF2E5B8E)
-
-val JarvisTextPrimary = Color(0xFFE6F4FE)
-val JarvisTextSecondary = Color(0xFF90B3D1)
-val JarvisTextMuted = Color(0xFF537392)
+val JarvisDeepBlue = HackPanelDark
+val JarvisEmerald = HackSuccess
+val JarvisAmber = HackWarning
+val JarvisCrimson = HackError
+val JarvisBgVoid = HackBgBlack
+val JarvisBgSurface = HackBgSecondary
+val JarvisBgCard = HackPanelDark
+val JarvisBgCardElevated = Color(0xFF101B24)
+val JarvisBorderGlow = Color(0xFF0F2633)
+val JarvisBorderBright = Color(0xFF194459)
+val JarvisTextPrimary = HackTextPrimary
+val JarvisTextSecondary = HackTextSecondary
+val JarvisTextMuted = Color(0xFF486A73)

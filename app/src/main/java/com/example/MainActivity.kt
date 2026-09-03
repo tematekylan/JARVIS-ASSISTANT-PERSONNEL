@@ -30,12 +30,17 @@ import com.example.ui.components.JarvisAuthDialog
 import com.example.ui.components.JarvisDrawerContent
 import com.example.ui.components.JarvisScreen
 import com.example.ui.components.JarvisTopBar
+import com.example.ui.screens.ActivityScreen
 import com.example.ui.screens.ChatScreen
 import com.example.ui.screens.CommandCenterScreen
 import com.example.ui.screens.HolographicAmbientScreen
+import com.example.ui.screens.HomeScreen
 import com.example.ui.screens.MemoryScreen
 import com.example.ui.screens.NotesScreen
 import com.example.ui.screens.SettingsScreen
+import com.example.ui.screens.SystemScreen
+import com.example.ui.screens.TaskScreen
+import com.example.ui.screens.TerminalScreen
 import com.example.ui.theme.JarvisBgVoid
 import com.example.ui.theme.JarvisTheme
 import kotlinx.coroutines.launch
@@ -176,7 +181,19 @@ fun JarvisApp(viewModel: MainViewModel) {
                     .background(JarvisBgVoid)
             ) {
                 when (currentScreen) {
+                    JarvisScreen.HOME -> HomeScreen(
+                        viewModel = viewModel,
+                        onNavigateToChat = { viewModel.navigateTo(JarvisScreen.CHAT) }
+                    )
                     JarvisScreen.CHAT -> ChatScreen(viewModel = viewModel)
+                    JarvisScreen.TASKS -> TaskScreen()
+                    JarvisScreen.TERMINAL -> TerminalScreen(
+                        onExecuteCommand = { cmd ->
+                            viewModel.sendMessage(cmd)
+                        }
+                    )
+                    JarvisScreen.ACTIVITY -> ActivityScreen()
+                    JarvisScreen.SYSTEM -> SystemScreen()
                     JarvisScreen.COMMAND_CENTER -> CommandCenterScreen(viewModel = viewModel)
                     JarvisScreen.MEMORY -> MemoryScreen(viewModel = viewModel)
                     JarvisScreen.NOTES -> NotesScreen(viewModel = viewModel)

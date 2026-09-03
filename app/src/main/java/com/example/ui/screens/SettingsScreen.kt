@@ -287,7 +287,7 @@ fun SettingsScreen(
                         }
                     }
                     Text(
-                        text = "Affiche l'image holographique de JARVIS avec ses molécules quantiques en lévitation continue, horloge numérique, jauge de batterie et écoute vocale instantanée même en mode veille.",
+                        text = "Affiche l'image holographique de T-HACK AI avec ses molécules quantiques en lévitation continue, horloge numérique, jauge de batterie et écoute vocale instantanée même en mode veille.",
                         color = JarvisTextSecondary,
                         fontSize = 11.sp,
                         lineHeight = 15.sp
@@ -408,7 +408,7 @@ fun SettingsScreen(
                                 fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = "Exécute JARVIS localement avec les outils intégrés sans appel API externe.",
+                                text = "Exécute T-HACK AI localement avec les outils intégrés sans appel API externe.",
                                 color = JarvisTextMuted,
                                 fontSize = 10.sp
                             )
@@ -1270,7 +1270,7 @@ fun SettingsScreen(
                         fontFamily = FontFamily.Monospace
                     )
                     Text(
-                        text = "Efface l'historique complet des conversations, les notes, journaux d'outils et réinitialise JARVIS.",
+                        text = "Efface l'historique complet des conversations, les notes, journaux d'outils et réinitialise T-HACK AI.",
                         color = JarvisTextMuted,
                         fontSize = 11.sp
                     )

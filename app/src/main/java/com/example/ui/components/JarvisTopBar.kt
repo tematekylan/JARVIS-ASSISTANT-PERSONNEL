@@ -20,10 +20,15 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.BlurOn
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Dashboard
+import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.ListAlt
+import androidx.compose.material.icons.filled.Memory
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Note
 import androidx.compose.material.icons.filled.Psychology
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.filled.Terminal
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,7 +62,12 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 
 enum class JarvisScreen {
+    HOME,
     CHAT,
+    TASKS,
+    TERMINAL,
+    ACTIVITY,
+    SYSTEM,
     COMMAND_CENTER,
     MEMORY,
     NOTES,
@@ -114,7 +124,7 @@ fun JarvisTopBar(
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Text(
-                                text = "JARVIS",
+                                text = "T-HACK AI",
                                 color = JarvisCyan,
                                 fontSize = 16.sp,
                                 fontWeight = FontWeight.ExtraBold,
@@ -123,7 +133,7 @@ fun JarvisTopBar(
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
-                                text = "v2.5 // QUANTUM CORE",
+                                text = "v3.5 // NEURAL CORE",
                                 color = JarvisTextMuted,
                                 fontSize = 9.sp,
                                 fontFamily = FontFamily.Monospace
@@ -226,13 +236,43 @@ fun JarvisTopBar(
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 NavTabButton(
-                    title = "Chat",
+                    title = "HUD Main",
+                    icon = Icons.Default.Home,
+                    isSelected = currentScreen == JarvisScreen.HOME,
+                    onClick = { onNavigate(JarvisScreen.HOME) }
+                )
+                NavTabButton(
+                    title = "Dialogue",
                     icon = Icons.Default.Chat,
                     isSelected = currentScreen == JarvisScreen.CHAT,
                     onClick = { onNavigate(JarvisScreen.CHAT) }
                 )
                 NavTabButton(
-                    title = "Hologramme AOD",
+                    title = "Tâches",
+                    icon = Icons.Default.ListAlt,
+                    isSelected = currentScreen == JarvisScreen.TASKS,
+                    onClick = { onNavigate(JarvisScreen.TASKS) }
+                )
+                NavTabButton(
+                    title = "Terminal",
+                    icon = Icons.Default.Terminal,
+                    isSelected = currentScreen == JarvisScreen.TERMINAL,
+                    onClick = { onNavigate(JarvisScreen.TERMINAL) }
+                )
+                NavTabButton(
+                    title = "Activité",
+                    icon = Icons.Default.History,
+                    isSelected = currentScreen == JarvisScreen.ACTIVITY,
+                    onClick = { onNavigate(JarvisScreen.ACTIVITY) }
+                )
+                NavTabButton(
+                    title = "Système",
+                    icon = Icons.Default.Memory,
+                    isSelected = currentScreen == JarvisScreen.SYSTEM,
+                    onClick = { onNavigate(JarvisScreen.SYSTEM) }
+                )
+                NavTabButton(
+                    title = "AOD Veille",
                     icon = Icons.Default.BlurOn,
                     isSelected = currentScreen == JarvisScreen.HOLOGRAPHIC_AOD,
                     onClick = { onNavigate(JarvisScreen.HOLOGRAPHIC_AOD) }
@@ -244,19 +284,13 @@ fun JarvisTopBar(
                     onClick = { onNavigate(JarvisScreen.COMMAND_CENTER) }
                 )
                 NavTabButton(
-                    title = "Memory",
-                    icon = Icons.Default.Psychology,
-                    isSelected = currentScreen == JarvisScreen.MEMORY,
-                    onClick = { onNavigate(JarvisScreen.MEMORY) }
-                )
-                NavTabButton(
                     title = "Notes",
                     icon = Icons.Default.Note,
                     isSelected = currentScreen == JarvisScreen.NOTES,
                     onClick = { onNavigate(JarvisScreen.NOTES) }
                 )
                 NavTabButton(
-                    title = "Settings",
+                    title = "Paramètres",
                     icon = Icons.Default.Settings,
                     isSelected = currentScreen == JarvisScreen.SETTINGS,
                     onClick = { onNavigate(JarvisScreen.SETTINGS) }

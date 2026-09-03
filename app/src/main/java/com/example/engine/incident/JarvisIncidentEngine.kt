@@ -69,7 +69,7 @@ class JarvisIncidentEngine(
             name.contains("json") || msg.contains("json") -> "ERR_PAYLOAD_PARSE_FAILURE"
             name.contains("security") || name.contains("permission") -> "ERR_PERMISSION_DENIED"
             name.contains("outofmemory") -> "ERR_OOM_LOW_MEMORY"
-            else -> "ERR_JARVIS_RUNTIME_EXCEPTION"
+            else -> "ERR_THACK_RUNTIME_EXCEPTION"
         }
     }
 
@@ -78,7 +78,7 @@ class JarvisIncidentEngine(
         settings: UserSettingsEntity
     ): IncidentReportEntity = withContext(Dispatchers.IO) {
         val deliberationPrompt = """
-            URGENT : RAPPORT D'INCIDENT SYSTÈME JARVIS (${incident.incidentCode})
+            URGENT : RAPPORT D'INCIDENT SYSTÈME T-HACK AI (${incident.incidentCode})
             Code Erreur : ${incident.errorCode}
             Message : ${incident.errorMessage}
             Contexte utilisateur : ${incident.contextInfo}
@@ -100,7 +100,7 @@ class JarvisIncidentEngine(
                 val fullResponse = multiAiClient.generateContentStream(
                     settings = settings,
                     prompt = deliberationPrompt,
-                    systemInstruction = "Tu es le coordinateur du Collège d'IA de résolution des incidents Jarvis.",
+                    systemInstruction = "Tu es le coordinateur du Collège d'IA de résolution des incidents T-HACK AI.",
                     onChunkReceived = { chunk -> rawResult += chunk }
                 )
                 deliberationText = if (fullResponse.isNotBlank()) fullResponse else rawResult
@@ -148,17 +148,17 @@ class JarvisIncidentEngine(
                 val backoffDelayMs = 1500L
                 val maxRetries = 3
                 // 1. Reconnexion automatique et rafraîchissement des tokens
-                Log.d("JarvisSWAT", "Patch ${incident.errorCode} appliqué avec succès.")
+                Log.d("THackSWAT", "Patch ${incident.errorCode} appliqué avec succès.")
             }
         """.trimIndent()
     }
 
     fun buildEmailIntent(incident: IncidentReportEntity): Intent {
-        val subject = "[JARVIS ALERT] Incident ${incident.incidentCode} - ${incident.errorCode}"
+        val subject = "[T-HACK AI ALERT] Incident ${incident.incidentCode} - ${incident.errorCode}"
         val body = """
             Bonjour Teddy,
 
-            Une anomalie a été détectée dans votre application JARVIS :
+            Une anomalie a été détectée dans votre application T-HACK AI :
 
             --------------------------------------------------
             📋 RAPPORT D'INCIDENT SYSTÈME
@@ -186,7 +186,7 @@ class JarvisIncidentEngine(
             ${incident.stackTrace.take(1500)}
 
             Cordialement,
-            Le Système Autonome JARVIS & Le Collège d'IA
+            Le Système Autonome T-HACK AI & Le Collège d'IA
         """.trimIndent()
 
         val uri = Uri.parse("mailto:${incident.emailRecipient}?subject=" + Uri.encode(subject) + "&body=" + Uri.encode(body))

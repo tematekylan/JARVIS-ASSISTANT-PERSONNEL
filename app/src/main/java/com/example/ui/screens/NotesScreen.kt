@@ -398,7 +398,7 @@ fun EmptyNotesPlaceholder(onAddClick: () -> Unit) {
         )
         Spacer(modifier = Modifier.height(4.dp))
         Text(
-            text = "Dites à JARVIS : « Note : rendez-vous demain »\nou créez une note manuellement.",
+            text = "Dites à T-HACK AI : « Note : rendez-vous demain »\nou créez une note manuellement.",
             color = JarvisTextMuted,
             fontSize = 11.sp,
             textAlign = androidx.compose.ui.text.style.TextAlign.Center

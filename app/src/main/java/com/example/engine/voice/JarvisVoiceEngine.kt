@@ -95,7 +95,7 @@ class JarvisVoiceEngine(private val context: Context) : TextToSpeech.OnInitListe
         setSpeechParameters(rate = rate, pitch = pitch, languageCode = languageCode)
     }
 
-    fun speak(text: String, utteranceId: String = "JARVIS_RESPONSE") {
+    fun speak(text: String, utteranceId: String = "THACK_RESPONSE") {
         if (!isTtsInitialized || tts == null) return
         stopListening()
         stopSpeaking()

@@ -22,6 +22,6 @@ dependencyResolutionManagement {
   }
 }
 
-rootProject.name = "JARVIS"
+rootProject.name = "T-HACK AI"
 
 include(":app")
