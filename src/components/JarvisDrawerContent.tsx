@@ -15,7 +15,9 @@ import {
   Trash2, 
   Plus, 
   X,
-  ShieldCheck
+  ShieldCheck,
+  Tv,
+  Bell
 } from 'lucide-react';
 import { Conversation, JarvisScreen, UserSettings } from '../types';
 
@@ -52,6 +54,8 @@ export const JarvisDrawerContent: React.FC<JarvisDrawerContentProps> = ({
     { screen: 'HOME' as JarvisScreen, label: 'Tableau de Bord Holographique', icon: Home },
     { screen: 'CHAT' as JarvisScreen, label: 'Canal de Discussion', icon: MessageSquare },
     { screen: 'COMMAND_CENTER' as JarvisScreen, label: 'Command Center & Outils', icon: Sliders },
+    { screen: 'EXTERNAL_APPS' as JarvisScreen, label: 'Passerelle YouTube / Apps', icon: Tv },
+    { screen: 'NOTIFICATIONS' as JarvisScreen, label: 'Notifications & Alertes', icon: Bell },
     { screen: 'TASKS' as JarvisScreen, label: 'Gestionnaire de Tâches', icon: CheckSquare },
     { screen: 'TERMINAL' as JarvisScreen, label: 'Console Terminal TTY', icon: TermIcon },
     { screen: 'MEMORY' as JarvisScreen, label: 'Coffre-fort Mémoriel', icon: Brain },

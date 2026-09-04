@@ -30,15 +30,27 @@ export const HolographicAmbientScreen: React.FC<HolographicAmbientScreenProps> =
   const [dateStr, setDateStr] = useState("");
 
   useEffect(() => {
-    const updateTime = () => {
-      const now = new Date();
-      setTimeStr(now.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit', second: '2-digit' }));
-      setDateStr(now.toLocaleDateString('fr-FR', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' }).toUpperCase());
+    // Attempt fullscreen if available
+    if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {
+        // Fullscreen may require explicit user gesture in some browsers
+      });
+    }
+
+    return () => {
+      if (document.exitFullscreen && document.fullscreenElement) {
+        document.exitFullscreen().catch(() => {});
+      }
     };
-    updateTime();
-    const timer = setInterval(updateTime, 1000);
-    return () => clearInterval(timer);
   }, []);
+
+  const handleSafeExit = () => {
+    if (document.exitFullscreen && document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    }
+    onExit();
+  };
+
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -186,7 +198,7 @@ export const HolographicAmbientScreen: React.FC<HolographicAmbientScreenProps> =
         </div>
 
         <button
-          onClick={onExit}
+          onClick={handleSafeExit}
           className="p-2 rounded bg-[#0A1219]/80 border border-[#007C91]/50 text-[#6F9DA6] hover:text-[#00E5FF] transition-colors cursor-pointer"
           title="Quitter la veille"
         >

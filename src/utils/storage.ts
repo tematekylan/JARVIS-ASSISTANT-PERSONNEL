@@ -1,12 +1,12 @@
-import { Conversation, IncidentReport, Memory, Message, Note, TaskItem, ToolLog, UserSettings } from '../types';
+import { Conversation, IncidentReport, Memory, Message, Note, NotificationItem, TaskItem, ToolLog, UserSettings } from '../types';
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   id: 1,
-  userName: "Sir",
-  userEmail: "",
+  userName: "Teddy",
+  userEmail: "temateteddy@gmail.com",
   userPhone: "",
   authProvider: "guest",
-  isLoggedIn: false,
+  isLoggedIn: true,
   securityClearanceLevel: "LEVEL 5 (COMMANDER)",
   assistantName: "T-HACK AI",
   voiceLanguage: "fr",
@@ -32,7 +32,10 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   voicePersonaPromptStyle: "Tu es T-HACK AI, l'intelligence artificielle tactique personnelle hautement sophistiquée inspirée de J.A.R.V.I.S.",
   isVoicePersonaActive: true,
   developerAlertEmail: "temateteddy@gmail.com",
-  autoSendErrorAlerts: true
+  autoSendErrorAlerts: true,
+  voiceAnnounceNotifications: true,
+  wakeWordEnabled: true,
+  defaultWhatsappNumber: ""
 };
 
 const STORAGE_KEYS = {
@@ -43,7 +46,8 @@ const STORAGE_KEYS = {
   NOTES: 'thack_notes_v1',
   TASKS: 'thack_tasks_v1',
   INCIDENTS: 'thack_incidents_v1',
-  TOOL_LOGS: 'thack_tool_logs_v1'
+  TOOL_LOGS: 'thack_tool_logs_v1',
+  NOTIFICATIONS: 'thack_notifications_v1'
 };
 
 export function loadSettings(): UserSettings {
@@ -272,3 +276,60 @@ export function saveIncidents(incidents: IncidentReport[]): void {
     console.warn("Failed to save incidents:", e);
   }
 }
+
+export function loadNotifications(): NotificationItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Failed to load notifications:", e);
+  }
+  const defaults: NotificationItem[] = [
+    {
+      id: "notif-1",
+      source: "whatsapp",
+      sender: "Teddy Hackman",
+      message: "Salut ! Tu as vu le dernier déploiement de T-HACK AI ? C'est incroyable.",
+      timestamp: Date.now() - 1000 * 60 * 5,
+      isRead: false,
+      actionUrl: "https://wa.me/?text=Reçu%20cinq%20sur%20cinq%20!",
+      replySuggestion: "Reçu cinq sur cinq ! Le système est opérationnel."
+    },
+    {
+      id: "notif-2",
+      source: "gmail",
+      sender: "Google Cloud / AI Studio",
+      message: "Alerte de quota API : Vos clés sont validées et prêtes pour la production.",
+      timestamp: Date.now() - 1000 * 60 * 25,
+      isRead: false,
+      actionUrl: "https://mail.google.com/mail/u/0/#inbox"
+    },
+    {
+      id: "notif-3",
+      source: "messenger",
+      sender: "Alex Dupont",
+      message: "Rappel : Réunion de débriefing tactique à 17h00 sur Google Meet.",
+      timestamp: Date.now() - 1000 * 60 * 60,
+      isRead: true,
+      actionUrl: "https://m.me/"
+    }
+  ];
+  saveNotifications(defaults);
+  return defaults;
+}
+
+export function saveNotifications(notifications: NotificationItem[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+  } catch (e) {
+    console.warn("Failed to save notifications:", e);
+  }
+}
+
+export function addNotification(item: NotificationItem): NotificationItem[] {
+  const current = loadNotifications();
+  const updated = [item, ...current];
+  saveNotifications(updated);
+  return updated;
+}
+

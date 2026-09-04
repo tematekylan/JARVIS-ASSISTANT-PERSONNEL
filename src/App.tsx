@@ -9,7 +9,8 @@ import {
   Note, 
   Memory, 
   ToolLog, 
-  IncidentReport 
+  IncidentReport,
+  NotificationItem 
 } from './types';
 import { 
   loadSettings, 
@@ -25,7 +26,9 @@ import {
   loadToolLogs, 
   saveToolLogs, 
   loadIncidents, 
-  saveIncidents 
+  saveIncidents,
+  loadNotifications,
+  saveNotifications
 } from './utils/storage';
 import { 
   playHudBeep, 
@@ -56,6 +59,9 @@ import { SystemScreen } from './screens/SystemScreen';
 import { ActivityScreen } from './screens/ActivityScreen';
 import { SettingsScreen } from './screens/SettingsScreen';
 import { HolographicAmbientScreen } from './screens/HolographicAmbientScreen';
+import { ExternalAppsScreen } from './screens/ExternalAppsScreen';
+import { NotificationsScreen } from './screens/NotificationsScreen';
+import { executeExternalAppCommand } from './utils/appCoordinator';
 
 export const App: React.FC = () => {
   // Navigation & UI States
@@ -80,6 +86,7 @@ export const App: React.FC = () => {
   const [memories, setMemories] = useState<Memory[]>(loadMemories);
   const [toolLogs, setToolLogs] = useState<ToolLog[]>(loadToolLogs);
   const [incidents, setIncidents] = useState<IncidentReport[]>(loadIncidents);
+  const [notifications, setNotifications] = useState<NotificationItem[]>(loadNotifications);
 
   // Active conversation object
   const activeConversation = conversations.find(c => c.id === activeConversationId) || conversations[0] || {
@@ -98,6 +105,7 @@ export const App: React.FC = () => {
   useEffect(() => { saveMemories(memories); }, [memories]);
   useEffect(() => { saveToolLogs(toolLogs); }, [toolLogs]);
   useEffect(() => { saveIncidents(incidents); }, [incidents]);
+  useEffect(() => { saveNotifications(notifications); }, [notifications]);
 
   // Audio Amplitude simulation when listening or speaking
   useEffect(() => {
@@ -138,6 +146,31 @@ export const App: React.FC = () => {
       const success = startListening(
         (transcript) => {
           setIsListening(false);
+          const lower = transcript.toLowerCase().trim();
+          
+          // Check wake word: "HACK AI démarre" / "mode hologramme"
+          if (
+            lower.includes("hack ai demarre") ||
+            lower.includes("hack ai démarre") ||
+            lower.includes("hack ai active") ||
+            lower.includes("mode hologramme") ||
+            lower.includes("plein ecran") ||
+            lower.includes("plein écran")
+          ) {
+            playJarvisChime();
+            speakText("Protocole HACK AI activé. Affichage holographique plein écran enclenché.", {
+              rate: settings.speechRate,
+              pitch: settings.speechPitch,
+              language: settings.voiceLanguage
+            });
+            if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+              document.documentElement.requestFullscreen().catch(() => {});
+            }
+            setCurrentScreen('HOLOGRAPHIC_AOD');
+            setAssistantState('IDLE');
+            return;
+          }
+
           setAssistantState('PROCESSING');
           handleSendMessage(transcript);
         },
@@ -187,6 +220,50 @@ export const App: React.FC = () => {
     ));
 
     setAssistantState('THINKING');
+
+    // Check for Wake Word directly in prompt
+    const lowerContent = content.toLowerCase().trim();
+    if (
+      lowerContent.includes("hack ai demarre") ||
+      lowerContent.includes("hack ai démarre") ||
+      lowerContent.includes("mode hologramme")
+    ) {
+      playJarvisChime();
+      speakText("Protocole HACK AI activé. Affichage holographique plein écran enclenché.", {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage
+      });
+      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+        document.documentElement.requestFullscreen().catch(() => {});
+      }
+      setCurrentScreen('HOLOGRAPHIC_AOD');
+      setAssistantState('IDLE');
+      return;
+    }
+
+    // Check External App Intent (YouTube, WhatsApp, Gmail, Messenger)
+    try {
+      const appResult = await executeExternalAppCommand(content, settings);
+      if (appResult.handled) {
+        const assistantMsg: Message = {
+          id: `msg_${Date.now()}_a`,
+          role: 'assistant',
+          content: appResult.spokenResponse || appResult.feedback || `Liaison effectuée avec succès pour l'application ${appResult.appName}.`,
+          timestamp: Date.now()
+        };
+        setConversations(prev => prev.map(c => 
+          c.id === activeConversation.id 
+            ? { ...c, messages: [...updatedMessages, assistantMsg], updatedAt: Date.now() }
+            : c
+        ));
+        setAssistantState('SUCCESS');
+        setTimeout(() => setAssistantState('IDLE'), 2000);
+        return;
+      }
+    } catch (e) {
+      console.warn("External app intent check fallback:", e);
+    }
 
     try {
       // 1. Check for slash command or direct tool execution
@@ -520,6 +597,28 @@ export const App: React.FC = () => {
               setToolLogs(loadToolLogs());
               setIncidents(loadIncidents());
             }}
+          />
+        )}
+
+        {currentScreen === 'EXTERNAL_APPS' && (
+          <ExternalAppsScreen 
+            settings={settings}
+            onEnterHolographicMode={() => {
+              if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+              }
+              setCurrentScreen('HOLOGRAPHIC_AOD');
+            }}
+            onNotificationReceived={(n) => setNotifications(prev => [n, ...prev])}
+          />
+        )}
+
+        {currentScreen === 'NOTIFICATIONS' && (
+          <NotificationsScreen 
+            notifications={notifications}
+            settings={settings}
+            onUpdateNotifications={setNotifications}
+            onUpdateSettings={setSettings}
           />
         )}
 

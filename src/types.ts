@@ -18,7 +18,21 @@ export type JarvisScreen =
   | 'MEMORY' 
   | 'NOTES' 
   | 'SETTINGS' 
+  | 'EXTERNAL_APPS'
+  | 'NOTIFICATIONS'
   | 'HOLOGRAPHIC_AOD';
+
+export interface NotificationItem {
+  id: string;
+  source: 'whatsapp' | 'messenger' | 'gmail' | 'system' | 'youtube';
+  sender: string;
+  message: string;
+  timestamp: number;
+  isRead: boolean;
+  actionUrl?: string;
+  replySuggestion?: string;
+}
+
 
 export interface Conversation {
   id: string;
@@ -130,6 +144,9 @@ export interface UserSettings {
   isVoicePersonaActive: boolean;
   developerAlertEmail: string;
   autoSendErrorAlerts: boolean;
+  voiceAnnounceNotifications: boolean;
+  wakeWordEnabled: boolean;
+  defaultWhatsappNumber: string;
 }
 
 export interface TaskItem {

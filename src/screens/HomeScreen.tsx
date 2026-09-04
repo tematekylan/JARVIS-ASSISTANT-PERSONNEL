@@ -5,7 +5,7 @@ import { SystemStatusPanel } from '../components/SystemStatusPanel';
 import { FuturisticCommandCenter } from '../components/FuturisticCommandCenter';
 import { HudPanel } from '../components/HudPanel';
 import { AssistantState, UserSettings, Message, Conversation } from '../types';
-import { Sparkles, MessageSquare, Terminal as TermIcon, Sliders, ChevronRight } from 'lucide-react';
+import { Sparkles, MessageSquare, Terminal as TermIcon, Sliders, ChevronRight, Tv, Bell, Maximize2, Send, Mail } from 'lucide-react';
 
 interface HomeScreenProps {
   assistantState: AssistantState;
@@ -148,6 +148,53 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
 
       {/* System Telemetry Panel */}
       <SystemStatusPanel settings={settings} />
+
+      {/* Quick App Coordination Shortcuts & Wake Word Banner */}
+      <div className="p-2.5 bg-[#070D12] border border-[#007C91]/40 rounded flex flex-wrap items-center justify-between gap-2">
+        <div className="flex items-center space-x-1.5 overflow-x-auto py-0.5">
+          <span className="text-[10px] font-mono text-[#6F9DA6] uppercase shrink-0">Passerelles Rapides :</span>
+          <button
+            onClick={() => onSendCommand("ouvre moi Youtube et recherche Teddy Hackman et tu me lie sa derniere video")}
+            className="px-2.5 py-1 text-xs font-mono bg-[#FF4660]/15 border border-[#FF4660]/40 text-[#FF8596] hover:bg-[#FF4660]/25 rounded flex items-center space-x-1 cursor-pointer transition-all shrink-0"
+          >
+            <Tv className="w-3 h-3" />
+            <span>YouTube: Teddy Hackman</span>
+          </button>
+
+          <button
+            onClick={() => onSendCommand("ouvre whatsapp et prépare un message pour Teddy")}
+            className="px-2.5 py-1 text-xs font-mono bg-[#25D366]/15 border border-[#25D366]/40 text-[#25D366] hover:bg-[#25D366]/25 rounded flex items-center space-x-1 cursor-pointer transition-all shrink-0"
+          >
+            <Send className="w-3 h-3" />
+            <span>WhatsApp</span>
+          </button>
+
+          <button
+            onClick={() => onSendCommand("ouvre gmail et compose un nouveau message")}
+            className="px-2.5 py-1 text-xs font-mono bg-[#EA4335]/15 border border-[#EA4335]/40 text-[#EA4335] hover:bg-[#EA4335]/25 rounded flex items-center space-x-1 cursor-pointer transition-all shrink-0"
+          >
+            <Mail className="w-3 h-3" />
+            <span>Gmail</span>
+          </button>
+
+          <button
+            onClick={() => onNavigate('NOTIFICATIONS')}
+            className="px-2.5 py-1 text-xs font-mono bg-[#FFB547]/15 border border-[#FFB547]/40 text-[#FFB547] hover:bg-[#FFB547]/25 rounded flex items-center space-x-1 cursor-pointer transition-all shrink-0"
+          >
+            <Bell className="w-3 h-3" />
+            <span>Alertes Vocales</span>
+          </button>
+        </div>
+
+        <button
+          onClick={() => onSendCommand("HACK AI démarre")}
+          className="px-3 py-1 bg-[#00E5FF]/20 border border-[#00E5FF] hover:bg-[#00E5FF]/30 text-[#00E5FF] font-mono text-xs font-bold rounded flex items-center space-x-1.5 transition-all cursor-pointer shadow-[0_0_12px_rgba(0,229,255,0.3)] shrink-0"
+          title="Dites 'HACK AI démarre' ou cliquez ici pour activer le mode hologramme plein écran"
+        >
+          <Maximize2 className="w-3 h-3" />
+          <span>HACK AI DÉMARRE (HOLOGRAMME)</span>
+        </button>
+      </div>
 
       {/* Bottom Section: Futuristic Command Center */}
       <div className="pt-1">

@@ -30,6 +30,8 @@ export const JarvisTopBar: React.FC<JarvisTopBarProps> = ({
       case 'NOTES': return "BLOC-NOTES & DIRECTIVES";
       case 'SYSTEM': return "DIAGNOSTIC MATÉRIEL & RÉACTEUR";
       case 'ACTIVITY': return "JOURNAL DES OPÉRATIONS";
+      case 'EXTERNAL_APPS': return "PASSERELLE EXTERNE & COORDINATION D'APPS";
+      case 'NOTIFICATIONS': return "CENTRE DES NOTIFICATIONS & ANNONCES VOCALES";
       case 'SETTINGS': return "CONFIGURATION DU PROTOCOLE T-HACK";
       case 'HOLOGRAPHIC_AOD': return "VEILLE QUANTIQUE HOLOGRAPHIQUE";
       default: return "T-HACK AI";
@@ -80,6 +82,22 @@ export const JarvisTopBar: React.FC<JarvisTopBarProps> = ({
           }`}
         >
           OUTILS
+        </button>
+        <button
+          onClick={() => onNavigate('EXTERNAL_APPS')}
+          className={`px-2 py-1 text-xs font-mono rounded border transition-all cursor-pointer ${
+            currentScreen === 'EXTERNAL_APPS' ? 'bg-[#31F5A3]/20 border-[#31F5A3] text-[#31F5A3]' : 'border-transparent text-[#6F9DA6] hover:text-[#E5FCFF]'
+          }`}
+        >
+          APPS
+        </button>
+        <button
+          onClick={() => onNavigate('NOTIFICATIONS')}
+          className={`px-2 py-1 text-xs font-mono rounded border transition-all cursor-pointer ${
+            currentScreen === 'NOTIFICATIONS' ? 'bg-[#FFB547]/20 border-[#FFB547] text-[#FFB547]' : 'border-transparent text-[#6F9DA6] hover:text-[#E5FCFF]'
+          }`}
+        >
+          ALERTES
         </button>
         <button
           onClick={() => onNavigate('TASKS')}
