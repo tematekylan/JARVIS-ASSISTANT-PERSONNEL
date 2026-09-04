@@ -1,50 +1,62 @@
-# Three-T-K-JARVIS-Assistant-personnel
+# T-HACK AI // JARVIS ASSISTANT PERSONNEL (Web Edition)
 
-JARVIS est une application Android d'assistant personnel futuriste haut de gamme, développée avec **Kotlin** et **Jetpack Compose**, intégrant les capacités d'intelligence artificielle multimodale de **Gemini** et une suite complète d'outils autonomes.
-
----
-
-## ⚡ Fonctionnalités Clés
-
-- 🔮 **Cœur Holographique Quantique (Holographic Core)** : Rendu graphique en temps réel sur Canvas avec anneaux orbitaux en rotation, particules d'énergie et réactivité dynamique à l'amplitude sonore de la voix.
-- 🧠 **Moteur IA & Streaming Multimodal** : Intégration de l'API Gemini avec streaming fluide de texte, analyse visuelle d'images et mode autonome / démo hors-ligne.
-- 🛠️ **Matrice d'Outils Autonomes** :
-  - **Calculatrice scientifique** : Évaluation d'expressions mathématiques et scientifiques complexes.
-  - **Horloge Mondiale & Chrono** : Fuseaux horaires et formats temporels mondiaux.
-  - **Scanner Météo** : Rapports atmosphériques et prévisions en direct.
-  - **Télémétrie Système** : Surveillance des performances (RAM, stockage, batterie, processeur).
-  - **Coffre-fort Mémoriel** : Enregistrement et rappel intelligent d'informations et préférences utilisateur.
-  - **Bloc-notes & Archives** : Gestion de notes avec catégorisation et recherche.
-  - **Liaison Web** : Synthèse de connaissances et recherche externe.
-- 🎙️ **Intelligence Vocale Bidirectionnelle** : Reconnaissance vocale continue via Android SpeechRecognizer et synthèse vocale TTS ajustable (vitesse, pitch).
-- 💾 **Persistance Locale Sécurisée** : Base de données locale **Room** pour les conversations, mémoires, notes et journaux d'exécution des outils.
+T-HACKMAN AI est une application web d'assistant personnel futuriste haut de gamme, réécrite pour le Web avec **React 18**, **TypeScript**, **Tailwind CSS** et un serveur proxy **Express** pour le SDK Google Gemini.
 
 ---
 
-## 🛠️ Stack Technique
+## ⚡ Fonctionnalités Clés Réécrites
 
-- **Langage** : Kotlin
-- **Interface Utilisateur** : Jetpack Compose & Material 3
-- **Architecture** : MVVM (Model-View-ViewModel) + Clean Architecture
-- **Base de Données** : Android Room (SQLite local)
-- **Réseau & Streaming** : Ktor / OkHttp & Coroutines Flow
-- **IA** : API Google Gemini (3.5 Flash, 3.1 Pro, Flash Vision)
-- **Audio & Voix** : Android SpeechRecognizer, TextToSpeech & Audio Visualizer
+- 🔮 **Cœur Holographique Quantique (Holographic Core)** : Rendu graphique dynamique 60 FPS sur Canvas HTML5 avec 7 anneaux orbitaux interactifs, particules stellaires, impulsions de réacteur Arc Stark et réactivité sonore en temps réel.
+- 🧠 **Moteur IA Multimodal & Gemini API** : Serveur backend Express proxy pour l'API Gemini (`gemini-3.8-flash`, `gemini-2.5-pro`) avec mémoire contextuelle injectée et mode démo hors-ligne.
+- 🛠️ **Command Center & Matrice d'Outils Autonomes** :
+  - **Calculatrice scientifique** : Évaluation d'expressions arithmétiques.
+  - **Horloge Mondiale & Chrono** : Fuseaux horaires mondiaux (UTC, Tokyo, New York, etc.).
+  - **Scanner Météo** : Télémétrie météorologique simulée par satellite.
+  - **Diagnostic Système** : Télémétrie du réacteur Arc Stark, fréquence CPU et confinement magnétique.
+  - **Coffre-fort Mémoriel** : Enregistrement, classification et bascule active des faits mémoriels injectés dans le Core.
+  - **Bloc-notes & Fiches** : Prise de notes tactiques avec filtres et tags.
+  - **Gestionnaire de Tâches** : Directives planifiées avec statuts et catégories.
+  - **Conseil d'IA d'Incident** : Convocation du collège d'experts IA (Architecte, Analyste, Ingénieur correctif) avec génération de patchs en direct.
+- 🎙️ **Intelligence Vocale Bidirectionnelle** :
+  - Reconnaissance vocale par micro via l'API Web Speech (`webkitSpeechRecognition`).
+  - Synthèse vocale TTS haute fidélité avec réglages fins de vitesse d'élocution et de tonalité.
+  - Égaliseur visuel de flux audio dynamique.
+- 💻 **Console Terminal Cybernétique (TTY_1)** : Interface shell futuriste avec curseur clignotant, journal d'exécution et routage direct vers le Core IA.
+- 🌌 **Écran de Veille Quantique Holographique (AOD)** : Mode ambiant plein écran avec molécules orbitales, horloge numérique Stark et veille énergétique.
+- 💾 **Persistance Locale Sécurisée** : Sauvegarde synchrone des sessions, mémoires, tâches et notes via `localStorage`.
 
 ---
 
-## 🚀 Installation & Lancement
+## 🛠️ Stack Technique Web
 
-1. Clonez ce dépôt ou téléchargez l'archive :
+- **Frontend** : React 18, TypeScript, Tailwind CSS, Lucide React
+- **Graphismes & Hologrammes** : Canvas 2D API avec boucle `requestAnimationFrame`
+- **Backend / Serveur** : Node.js / Express avec Vite Middleware (`server.ts`)
+- **Intelligence Artificielle** : SDK `@google/genai` (Gemini API)
+- **Moteur Audio** : Web Audio API (oscillateurs synthétiques Stark) & Web Speech API
+
+---
+
+## 🚀 Démarrage & Exécution
+
+1. Installez les dépendances :
    ```bash
-   git clone https://github.com/tematekylan/Three-T-K-JARVIS-Assistant-personnel.git
+   npm install
    ```
-2. Ouvrez le projet dans **Android Studio** (Koala / Ladybug ou supérieur).
-3. Synchronisez les dépendances Gradle.
-4. Lancez l'application sur votre appareil physique ou sur un émulateur Android (API 26+).
+
+2. Lancez le serveur de développement :
+   ```bash
+   npm run dev
+   ```
+   L'application est accessible sur `http://localhost:3000`.
+
+3. Compiler pour la production :
+   ```bash
+   npm run build
+   ```
 
 ---
 
 ## 📄 Licence
 
-Ce projet est sous licence MIT - voir le fichier LICENSE pour plus de détails.
+Ce projet est sous licence MIT.
