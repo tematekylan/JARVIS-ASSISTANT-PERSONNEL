@@ -5,13 +5,15 @@ interface HudPanelProps {
   title?: string;
   badge?: string;
   className?: string;
+  accentColor?: string;
 }
 
 export const HudPanel: React.FC<HudPanelProps> = ({
   children,
   title,
   badge,
-  className = ""
+  className = "",
+  accentColor
 }) => {
   return (
     <div className={`relative bg-[#0A1219]/80 border border-[#007C91]/40 rounded-sm p-3.5 hud-panel-corner backdrop-blur-md ${className}`}>

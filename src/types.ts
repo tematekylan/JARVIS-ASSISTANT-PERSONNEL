@@ -39,13 +39,14 @@ export interface Conversation {
   title: string;
   createdAt: number;
   updatedAt: number;
-  isPinned: boolean;
-  summary: string;
+  isPinned?: boolean;
+  summary?: string;
+  messages: Message[];
 }
 
 export interface Message {
   id: string;
-  conversationId: string;
+  conversationId?: string;
   role: 'user' | 'assistant' | 'system';
   content: string;
   timestamp: number;
@@ -61,8 +62,9 @@ export interface Memory {
   key: string;
   content: string;
   category: 'General' | 'Preferences' | 'Work' | 'Identity' | 'System';
-  timestamp: number;
+  timestamp?: number;
   isActive: boolean;
+  createdAt?: number;
 }
 
 export interface Note {
@@ -155,6 +157,8 @@ export interface TaskItem {
   time: string;
   category: string; // 'Système' | 'Analyse' | 'Rappel'
   isCompleted: boolean;
+  priority?: 'HIGH' | 'MEDIUM' | 'LOW' | string;
+  createdAt?: number;
 }
 
 export interface ToolDefinition {

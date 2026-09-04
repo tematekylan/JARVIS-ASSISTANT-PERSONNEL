@@ -158,88 +158,185 @@ function handleMemory(input: string): string {
   return `Coffre-fort mémoriel : ${memories.filter(m => m.isActive).length} souvenirs actifs connectés au prompt système.`;
 }
 
-export function parseSlashCommand(input: string): {
+export interface SlashCommandResult {
   cleanedPrompt: string;
   slashMode: string | null;
   customSystemInstruction: string | null;
-} {
+  isSlash: boolean;
+  command: string | null;
+  cleanPrompt: string;
+}
+
+export function parseSlashCommand(input: string): SlashCommandResult {
   const trimmed = input.trim();
   const lower = trimmed.toLowerCase();
 
-  if (lower.startsWith("/image") || lower.startsWith("/photo") || lower.startsWith("/dessine") || lower.startsWith("/img")) {
+  const getClean = (text: string) => {
+    const spaceIdx = text.indexOf(" ");
+    return spaceIdx !== -1 ? text.substring(spaceIdx + 1).trim() : "";
+  };
+
+  if (lower.startsWith("/calculator") || lower.startsWith("/calc")) {
+    const clean = getClean(trimmed) || "42 * 2";
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim() || "Holographic Arc Reactor blueprint in cyber neon",
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
+      slashMode: "calculator",
+      command: "calculator",
+      isSlash: true,
+      customSystemInstruction: "MODE CALCULATRICE SCIENTIFIQUE"
+    };
+  }
+  if (lower.startsWith("/meteo") || lower.startsWith("/weather")) {
+    const clean = getClean(trimmed) || "Paris";
+    return {
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
+      slashMode: "meteo",
+      command: "meteo",
+      isSlash: true,
+      customSystemInstruction: "MODE MÉTÉO SATELLITAIRE"
+    };
+  }
+  if (lower.startsWith("/heure") || lower.startsWith("/time")) {
+    const clean = getClean(trimmed);
+    return {
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
+      slashMode: "heure",
+      command: "heure",
+      isSlash: true,
+      customSystemInstruction: "MODE HORLOGE MONDIALE"
+    };
+  }
+  if (lower.startsWith("/systeme") || lower.startsWith("/system") || lower.startsWith("/diag")) {
+    const clean = getClean(trimmed);
+    return {
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
+      slashMode: "systeme",
+      command: "systeme",
+      isSlash: true,
+      customSystemInstruction: "MODE DIAGNOSTIC SYSTÈME"
+    };
+  }
+  if (lower.startsWith("/image") || lower.startsWith("/photo") || lower.startsWith("/dessine") || lower.startsWith("/img")) {
+    const clean = getClean(trimmed) || "Holographic Arc Reactor blueprint in cyber neon";
+    return {
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "image",
+      command: "image",
+      isSlash: true,
       customSystemInstruction: "MODE GÉNÉRATION D'IMAGE IA STARK"
     };
   }
   if (lower.startsWith("/video") || lower.startsWith("/anim")) {
+    const clean = getClean(trimmed) || "Vol supersonique de l'armure Iron Man au crépuscule";
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim() || "Vol supersonique de l'armure Iron Man au crépuscule",
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "video",
+      command: "video",
+      isSlash: true,
       customSystemInstruction: "MODE RENDU CINÉMATIQUE & VIDÉO IA STARK"
     };
   }
   if (lower.startsWith("/humain") || lower.startsWith("/human")) {
+    const clean = getClean(trimmed) || "Parle-moi naturellement comme un ami humain.";
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim() || "Parle-moi naturellement comme un ami humain.",
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "humain",
+      command: "humain",
+      isSlash: true,
       customSystemInstruction: "MODE ULTRA-HUMAIN : Tu parles comme un ami humain chaleureux, naturel, direct et plein d'esprit, sans aucune formulation robotique."
     };
   }
   if (lower.startsWith("/rayonx") || lower.startsWith("/xray") || lower.startsWith("/eclate")) {
+    const clean = getClean(trimmed) || "Analyse en vue éclatée / Rayons X";
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim() || "Analyse en vue éclatée / Rayons X",
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "rayonx",
+      command: "rayonx",
+      isSlash: true,
       customSystemInstruction: "MODE VISION RAYONS X & VUE ÉCLATÉE D'INGÉNIERIE : Décompose tous les composants internes de l'objet ou concept en fiche technique haute précision."
     };
   }
   if (lower.startsWith("/plan") || lower.startsWith("/masterplan")) {
+    const clean = getClean(trimmed) || "Génère un plan d'action directeur de A à Z.";
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim() || "Génère un plan d'action directeur de A à Z.",
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "plan",
+      command: "plan",
+      isSlash: true,
       customSystemInstruction: "MODE MASTERPLAN DIRECTEUR : Structure la réponse en plan exécutif complet chronologique (Objectif, Phase 1, Phase 2, Phase 3, Risques, Checklist)."
     };
   }
   if (lower.startsWith("/code")) {
+    const clean = getClean(trimmed);
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim(),
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "code",
+      command: "code",
+      isSlash: true,
       customSystemInstruction: "MODE CODE EXPERT : Fournis directement le code complet, robuste, typé et prêt pour la production."
     };
   }
   if (lower.startsWith("/debug")) {
+    const clean = getClean(trimmed);
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim(),
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "debug",
+      command: "debug",
+      isSlash: true,
       customSystemInstruction: "MODE DEBUG & AUDIT TECHNIQUE : Analyse l'erreur, trouve la cause racine et fournis le correctif précis."
     };
   }
   if (lower.startsWith("/resume") || lower.startsWith("/summary")) {
+    const clean = getClean(trimmed);
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim(),
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "resume",
+      command: "resume",
+      isSlash: true,
       customSystemInstruction: "MODE SYNTHÈSE ULTRA-CONCISE : Résume l'information essentielle en 3 à 5 points clés percutants."
     };
   }
   if (lower.startsWith("/roast")) {
+    const clean = getClean(trimmed);
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim(),
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "roast",
+      command: "roast",
+      isSlash: true,
       customSystemInstruction: "MODE ROAST TONY STARK : Réponds avec l'humour sarcastique, piquant mais brillant de Tony Stark."
     };
   }
   if (lower.startsWith("/ironman")) {
+    const clean = getClean(trimmed);
     return {
-      cleanedPrompt: trimmed.substring(trimmed.indexOf(" ") + 1).trim(),
+      cleanedPrompt: clean,
+      cleanPrompt: clean,
       slashMode: "ironman",
+      command: "ironman",
+      isSlash: true,
       customSystemInstruction: "MODE ARMURE IRON MAN MK-85 : Intègre les métriques tactiques, le niveau du réacteur Arc et le protocole d'assistance du MCU Stark Industries."
     };
   }
 
   return {
     cleanedPrompt: input,
+    cleanPrompt: input,
     slashMode: null,
+    command: null,
+    isSlash: false,
     customSystemInstruction: null
   };
 }

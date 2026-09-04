@@ -71,7 +71,13 @@ export function saveSettings(settings: UserSettings): void {
 export function loadConversations(): Conversation[] {
   try {
     const raw = localStorage.getItem(STORAGE_KEYS.CONVERSATIONS);
-    if (raw) return JSON.parse(raw);
+    if (raw) {
+      const parsed: Conversation[] = JSON.parse(raw);
+      return parsed.map(c => ({
+        ...c,
+        messages: c.messages || []
+      }));
+    }
   } catch (e) {
     console.warn("Failed to load conversations:", e);
   }
@@ -81,7 +87,8 @@ export function loadConversations(): Conversation[] {
     createdAt: Date.now() - 3600000,
     updatedAt: Date.now(),
     isPinned: true,
-    summary: "Session initiale avec le Core T-HACK AI"
+    summary: "Session initiale avec le Core T-HACK AI",
+    messages: []
   };
   saveConversations([defaultConv]);
   return [defaultConv];

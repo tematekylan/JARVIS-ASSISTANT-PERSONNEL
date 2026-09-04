@@ -1,14 +1,24 @@
 import React, { useState, useEffect } from 'react';
 import { Wifi, ShieldCheck, Zap, Activity } from 'lucide-react';
 
+import { AssistantState, UserSettings } from '../types';
+
 interface FuturisticHeaderProps {
   systemStatusText?: string;
   clearanceLevel?: string;
+  settings?: UserSettings;
+  assistantState?: AssistantState;
+  onOpenSettings?: () => void;
+  onOpenAmbient?: () => void;
 }
 
 export const FuturisticHeader: React.FC<FuturisticHeaderProps> = ({
   systemStatusText = "T-HACK AI CORE",
-  clearanceLevel = "LEVEL 5"
+  clearanceLevel = "LEVEL 5",
+  settings,
+  assistantState,
+  onOpenSettings,
+  onOpenAmbient
 }) => {
   const [timeStr, setTimeStr] = useState("");
   const [blink, setBlink] = useState(true);
