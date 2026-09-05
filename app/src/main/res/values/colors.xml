@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black_bg">#030609</color>
+    <color name="cyan_primary">#00E5FF</color>
+    <color name="cyan_glow">#78F7FF</color>
+    <color name="cyan_dark">#007C91</color>
+    <color name="tech_green">#31F5A3</color>
+    <color name="text_primary">#E5FCFF</color>
+</resources>
