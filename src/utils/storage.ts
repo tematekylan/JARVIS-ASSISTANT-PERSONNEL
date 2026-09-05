@@ -1,4 +1,4 @@
-import { Conversation, IncidentReport, Memory, Message, Note, NotificationItem, TaskItem, ToolLog, UserSettings } from '../types';
+import { ContactItem, Conversation, IncidentReport, Memory, Message, Note, NotificationItem, TaskItem, ToolLog, UserSettings } from '../types';
 
 export const DEFAULT_USER_SETTINGS: UserSettings = {
   id: 1,
@@ -11,7 +11,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   assistantName: "T-HACK AI",
   voiceLanguage: "fr",
   ttsEnabled: true,
-  autoSpeakResponses: false,
+  autoSpeakResponses: true,
   speechRate: 1.0,
   speechPitch: 1.0,
   aiModel: "gemini-3.8-flash",
@@ -35,7 +35,10 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   autoSendErrorAlerts: true,
   voiceAnnounceNotifications: true,
   wakeWordEnabled: true,
-  defaultWhatsappNumber: ""
+  defaultWhatsappNumber: "",
+  screenWakeLockEnabled: true,
+  conversationalLoopEnabled: true,
+  autoWakeOnVoice: true
 };
 
 const STORAGE_KEYS = {
@@ -47,7 +50,8 @@ const STORAGE_KEYS = {
   TASKS: 'thack_tasks_v1',
   INCIDENTS: 'thack_incidents_v1',
   TOOL_LOGS: 'thack_tool_logs_v1',
-  NOTIFICATIONS: 'thack_notifications_v1'
+  NOTIFICATIONS: 'thack_notifications_v1',
+  CONTACTS: 'thack_contacts_v1'
 };
 
 export function loadSettings(): UserSettings {
@@ -339,4 +343,52 @@ export function addNotification(item: NotificationItem): NotificationItem[] {
   saveNotifications(updated);
   return updated;
 }
+
+// Contacts Management
+export function loadContacts(): ContactItem[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.CONTACTS);
+    if (raw) return JSON.parse(raw);
+  } catch (e) {
+    console.warn("Failed to load contacts:", e);
+  }
+
+  const defaultContacts: ContactItem[] = [
+    {
+      id: "cnt_1",
+      name: "Teddy Kylan (Moi)",
+      phone: "+33612345678",
+      email: "temateteddy@gmail.com",
+      category: "VIP",
+      isFavorite: true
+    },
+    {
+      id: "cnt_2",
+      name: "Alex Stark (Ingénierie)",
+      phone: "+33698765432",
+      email: "alex.stark@thack.ai",
+      category: "Travail",
+      isFavorite: true
+    },
+    {
+      id: "cnt_3",
+      name: "Support Tactique T-HACK",
+      phone: "+33140000000",
+      email: "support@t-hack.ai",
+      category: "VIP",
+      isFavorite: false
+    }
+  ];
+  saveContacts(defaultContacts);
+  return defaultContacts;
+}
+
+export function saveContacts(contacts: ContactItem[]): void {
+  try {
+    localStorage.setItem(STORAGE_KEYS.CONTACTS, JSON.stringify(contacts));
+  } catch (e) {
+    console.warn("Failed to save contacts:", e);
+  }
+}
+
 

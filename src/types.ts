@@ -10,6 +10,7 @@ export type AssistantState =
 export type JarvisScreen = 
   | 'HOME' 
   | 'CHAT' 
+  | 'SPLASH'
   | 'TASKS' 
   | 'TERMINAL' 
   | 'ACTIVITY' 
@@ -20,7 +21,42 @@ export type JarvisScreen =
   | 'SETTINGS' 
   | 'EXTERNAL_APPS'
   | 'NOTIFICATIONS'
-  | 'HOLOGRAPHIC_AOD';
+  | 'HOLOGRAPHIC_AOD'
+  | 'KOTLIN_STUDIO';
+
+export interface UserContact {
+  uid: string;
+  displayName: string;
+  email: string;
+  photoUrl?: string;
+  status?: string;
+  isOnline?: boolean;
+  lastSeen?: number;
+  phone?: string;
+}
+
+export interface DirectMessage {
+  id: string;
+  chatId: string;
+  senderId: string;
+  senderName: string;
+  receiverId: string;
+  content: string;
+  mediaUrl?: string;
+  timestamp: number;
+  isRead: boolean;
+}
+
+export interface DirectChat {
+  id: string;
+  participants: string[];
+  participantNames: Record<string, string>;
+  participantAvatars: Record<string, string>;
+  lastMessage: string;
+  lastMessageTime: number;
+  unreadCount: number;
+  createdAt: number;
+}
 
 export interface NotificationItem {
   id: string;
@@ -33,6 +69,27 @@ export interface NotificationItem {
   replySuggestion?: string;
 }
 
+
+export interface ActionCard {
+  appName: 'Spotify' | 'Google' | 'WhatsApp' | 'YouTube' | 'Gmail' | 'Messenger' | 'Phone' | 'Flashlight' | 'System';
+  title: string;
+  actionUrl: string;
+  nativeUrl?: string;
+  query?: string;
+  buttonLabel?: string;
+  contactName?: string;
+  contactPhone?: string;
+  extraDetails?: string;
+}
+
+export interface ContactItem {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  category?: 'VIP' | 'Famille' | 'Travail' | 'Général';
+  isFavorite?: boolean;
+}
 
 export interface Conversation {
   id: string;
@@ -55,6 +112,7 @@ export interface Message {
   toolOutput?: string | null;
   imageUri?: string | null;
   isError?: boolean;
+  actionCard?: ActionCard;
 }
 
 export interface Memory {
@@ -113,13 +171,18 @@ export interface IncidentReport {
   aiCouncilHotfixCode: string;
 }
 
+export type AuthValidationStatus = 'NON_AUTHENTIFIE' | 'EN_ATTENTE_VALIDATION' | 'VALIDE';
+
 export interface UserSettings {
   id: number;
   userName: string;
   userEmail: string;
   userPhone: string;
+  userAvatarUrl?: string;
+  userStatus?: string;
   authProvider: 'google' | 'email' | 'phone' | 'guest';
   isLoggedIn: boolean;
+  authValidationStatus?: AuthValidationStatus;
   securityClearanceLevel: string;
   assistantName: string;
   voiceLanguage: string; // 'fr' | 'en' | 'auto'
@@ -149,6 +212,9 @@ export interface UserSettings {
   voiceAnnounceNotifications: boolean;
   wakeWordEnabled: boolean;
   defaultWhatsappNumber: string;
+  screenWakeLockEnabled?: boolean;
+  conversationalLoopEnabled?: boolean;
+  autoWakeOnVoice?: boolean;
 }
 
 export interface TaskItem {

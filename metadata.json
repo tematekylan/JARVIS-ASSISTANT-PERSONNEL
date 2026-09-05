@@ -1,8 +1,9 @@
 {
-  "name": "T-HACK AI",
-  "description": "T-HACKMAN AI - Your Personal Artificial Intelligence with futuristic HUD, dynamic Canvas AI Core, and voice engine",
+  "name": "T-HACKMAN AI",
+  "description": "T-HACKMAN AI - Android & Mobile Futuristic AI Command Center and Autonomous Personal Assistant powered by animated AI Core, voice recognition, task automation, and Firebase.",
   "requestFramePermissions": [
-    "microphone"
+    "microphone",
+    "camera"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

@@ -212,6 +212,116 @@ export function startListening(
 }
 
 
+export { 
+  requestScreenWakeLock, 
+  releaseScreenWakeLock, 
+  isScreenWakeLockActive 
+} from './phoneControl';
+
+let wakeWordRecognitionInstance: any = null;
+let isWakeWordListening = false;
+
+/**
+ * Continuous Wake Word Detection Loop
+ * Listens for "Hey AI, allume-toi", "Allume-toi", "Allume l'écran", "T-HACK", "Hey Jarvis", "Plein écran", etc.
+ */
+export function startWakeWordDetection(
+  onWakeWord: (triggerPhrase: string) => void,
+  onSpeechInput?: (text: string) => void,
+  language: string = 'fr'
+): boolean {
+  const SpeechRecognitionClass = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+  if (!SpeechRecognitionClass) {
+    console.warn("SpeechRecognition indisponible pour le réveil par mot-clé.");
+    return false;
+  }
+
+  isWakeWordListening = true;
+
+  const launchListener = () => {
+    if (!isWakeWordListening) return;
+
+    try {
+      if (wakeWordRecognitionInstance) {
+        try { wakeWordRecognitionInstance.abort(); } catch (e) {}
+      }
+
+      const rec = new SpeechRecognitionClass();
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.lang = language === 'en' ? 'en-US' : 'fr-FR';
+
+      rec.onresult = (event: any) => {
+        for (let i = event.resultIndex; i < event.results.length; ++i) {
+          const transcript = event.results[i][0].transcript.toLowerCase().trim();
+          if (onSpeechInput) onSpeechInput(transcript);
+
+          // Check wake phrases
+          if (
+            transcript.includes("allume-toi") ||
+            transcript.includes("allume toi") ||
+            transcript.includes("allume l'ecran") ||
+            transcript.includes("allume l'écran") ||
+            transcript.includes("hey ai allume") ||
+            transcript.includes("hey ai") ||
+            transcript.includes("hack ai") ||
+            transcript.includes("hey jarvis") ||
+            transcript.includes("t-hack") ||
+            transcript.includes("reveille-toi") ||
+            transcript.includes("réveille-toi") ||
+            transcript.includes("active-toi") ||
+            transcript.includes("plein ecran") ||
+            transcript.includes("plein écran")
+          ) {
+            console.log("[WAKE-WORD ACTIVATED]:", transcript);
+            playJarvisChime();
+            onWakeWord(transcript);
+            break;
+          }
+        }
+      };
+
+      rec.onerror = (event: any) => {
+        if (event.error === 'not-allowed') {
+          isWakeWordListening = false;
+        }
+      };
+
+      rec.onend = () => {
+        // Automatically restart loop if wake-word detection is still desired
+        if (isWakeWordListening) {
+          setTimeout(() => {
+            launchListener();
+          }, 350);
+        }
+      };
+
+      wakeWordRecognitionInstance = rec;
+      rec.start();
+      return true;
+    } catch (err) {
+      console.warn("Erreur démarrage écoute mot-clé:", err);
+      return false;
+    }
+  };
+
+  return launchListener() || false;
+}
+
+export function stopWakeWordDetection(): void {
+  isWakeWordListening = false;
+  if (wakeWordRecognitionInstance) {
+    try {
+      wakeWordRecognitionInstance.stop();
+    } catch (e) {}
+    wakeWordRecognitionInstance = null;
+  }
+}
+
+export function isWakeWordDetectionActive(): boolean {
+  return isWakeWordListening;
+}
+
 export function stopListening(): void {
   if (recognitionInstance) {
     try {

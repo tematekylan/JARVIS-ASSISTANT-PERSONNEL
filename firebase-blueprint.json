@@ -1,0 +1,123 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile document with display name, email, avatar photo, online presence, status, and AI preferences",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "status": { "type": "string" },
+        "authStatus": { "type": "string", "enum": ["NON_AUTHENTIFIE", "EN_ATTENTE_VALIDATION", "VALIDE"] },
+        "emailVerified": { "type": "boolean" },
+        "isOnline": { "type": "boolean" },
+        "lastSeen": { "type": "number" },
+        "role": { "type": "string" },
+        "fcmToken": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" }
+      },
+      "required": ["uid", "email"]
+    },
+    "DirectChat": {
+      "title": "DirectChat",
+      "description": "Direct conversation between two or more users",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "participantNames": { "type": "array", "items": { "type": "string" } },
+        "participantAvatars": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "lastMessageTime": { "type": "number" },
+        "unreadCount": { "type": "number" },
+        "createdAt": { "type": "number" }
+      },
+      "required": ["id", "participants"]
+    },
+    "DirectMessage": {
+      "title": "DirectMessage",
+      "description": "Message sent in a direct user-to-user conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "senderName": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "timestamp": { "type": "number" },
+        "isRead": { "type": "boolean" }
+      },
+      "required": ["id", "chatId", "senderId", "content", "timestamp"]
+    },
+    "Conversation": {
+      "title": "Conversation",
+      "description": "A conversation section owned by a user",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "title": { "type": "string" },
+        "createdAt": { "type": "number" },
+        "updatedAt": { "type": "number" },
+        "isPinned": { "type": "boolean" }
+      },
+      "required": ["id", "userId", "title"]
+    },
+    "Message": {
+      "title": "Message",
+      "description": "Message in a conversation",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "role": { "type": "string" },
+        "content": { "type": "string" },
+        "timestamp": { "type": "number" }
+      },
+      "required": ["id", "conversationId", "role", "content", "timestamp"]
+    },
+    "AppUpdate": {
+      "title": "AppUpdate",
+      "description": "Application update manifest for client version notification",
+      "type": "object",
+      "properties": {
+        "version": { "type": "string" },
+        "releaseNotes": { "type": "string" },
+        "apkDownloadUrl": { "type": "string" },
+        "publishedAt": { "type": "number" }
+      },
+      "required": ["version"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profile document storing personal information and avatar photo"
+    },
+    "/users/{userId}/conversations/{conversationId}": {
+      "schema": "Conversation",
+      "description": "User conversation sessions / sections"
+    },
+    "/users/{userId}/conversations/{conversationId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages stored in a conversation"
+    },
+    "/direct_chats/{chatId}": {
+      "schema": "DirectChat",
+      "description": "User-to-user direct chat channel"
+    },
+    "/direct_chats/{chatId}/messages/{messageId}": {
+      "schema": "DirectMessage",
+      "description": "Messages in direct user-to-user chat"
+    },
+    "/app_updates/{updateId}": {
+      "schema": "AppUpdate",
+      "description": "Application updates for client version checking"
+    }
+  }
+}

@@ -1,13 +1,27 @@
-# T-HACK AI // JARVIS ASSISTANT PERSONNEL (Web Edition)
+# T-HACK AI // APPLICATION MOBILE & ASSISTANT PERSONNEL HOLOGRAPHIQUE
 
-T-HACKMAN AI est une application web d'assistant personnel futuriste haut de gamme, réécrite pour le Web avec **React 18**, **TypeScript**, **Tailwind CSS** et un serveur proxy **Express** pour le SDK Google Gemini.
+**T-HACKMAN AI** est votre application mobile d'assistant personnel intelligent et futuriste avec noyau holographique en temps réel, commandes vocales bidirectionnelles ("Hey AI, allume-toi"), passerelle de recherche universelle (Spotify, Google, WhatsApp), barre de navigation mobile native et installation directe sur smartphone (Progressive Web App - PWA).
 
 ---
 
-## ⚡ Fonctionnalités Clés Réécrites
+## 📱 Expérience Mobile & Installation sur Smartphone
 
-- 🔮 **Cœur Holographique Quantique (Holographic Core)** : Rendu graphique dynamique 60 FPS sur Canvas HTML5 avec 7 anneaux orbitaux interactifs, particules stellaires, impulsions de réacteur Arc Stark et réactivité sonore en temps réel.
-- 🧠 **Moteur IA Multimodal & Gemini API** : Serveur backend Express proxy pour l'API Gemini (`gemini-3.8-flash`, `gemini-2.5-pro`) avec mémoire contextuelle injectée et mode démo hors-ligne.
+- **Installation Directe sur Écran d'Accueil** : Conforme aux standards PWA modernes (Android & iOS).
+  - Sur **Android / Chrome** : Cliquez sur *"Installer sur mon téléphone"* pour créer l'icône de l'application mobile et l'exécuter en plein écran natif autonome (*Standalone*).
+  - Sur **iPhone / Safari** : Utilisez *"Partager"* > *"Sur l'écran d'accueil"*.
+- **Barre de Navigation Mobile Native** : Accès tactile immédiat en bas d'écran (`Core`, `Chat IA`, `Apps & Tél`, `Outils`, `Menu`).
+- **Contrôle Matériel Intégral** :
+  - **Éveil Vocal Permanent ("Hey AI, allume-toi")** : Active l'appareil et lance l'écoute sans contact.
+  - **Screen Wake Lock API** : Maintient l'écran du smartphone allumé sans mise en veille intempestive.
+  - **Contrôle Torche / Flash** : Allumage de la torche via l'API caméra native du téléphone.
+  - **Passerelle WhatsApp & Spotify** : Lancement d'appels, messages directs WhatsApp et recherches musicales Spotify.
+
+---
+
+## ⚡ Fonctionnalités Clés T-HACK AI
+
+- 🔮 **Cœur Holographique Quantique (Holographic Core)** : Rendu graphique dynamique 60 FPS sur Canvas avec anneaux orbitaux interactifs, particules stellaires, impulsions de réacteur Arc Stark et réactivité sonore en temps réel.
+- 🧠 **Moteur IA Multimodal & Gemini API** : Serveur backend proxy haute vitesse pour l'API Gemini (`gemini-3.8-flash`, `gemini-2.5-pro`) avec mémoire contextuelle injectée et mode démo hors-ligne.
 - 🛠️ **Command Center & Matrice d'Outils Autonomes** :
   - **Calculatrice scientifique** : Évaluation d'expressions arithmétiques.
   - **Horloge Mondiale & Chrono** : Fuseaux horaires mondiaux (UTC, Tokyo, New York, etc.).

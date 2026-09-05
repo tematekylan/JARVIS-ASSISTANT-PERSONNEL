@@ -1,5 +1,5 @@
 import React from 'react';
-import { Menu, Plus, User, ShieldAlert, Sparkles, Terminal as TermIcon, Brain, CheckSquare, Settings } from 'lucide-react';
+import { Menu, Plus, User, ShieldAlert, Sparkles, Terminal as TermIcon, Brain, CheckSquare, Settings, Download } from 'lucide-react';
 import { JarvisScreen, UserSettings } from '../types';
 
 interface JarvisTopBarProps {
@@ -117,8 +117,29 @@ export const JarvisTopBar: React.FC<JarvisTopBarProps> = ({
         </button>
       </div>
 
-      {/* Right actions: New session + Auth profile */}
+      {/* Right actions: APK Download + New session + Auth profile */}
       <div className="flex items-center space-x-1.5">
+        <a
+          href="/api/download/apk"
+          download="t-hackman-ai-v2.5.0.apk"
+          className="flex items-center gap-1 px-2 py-1 text-xs font-mono rounded bg-[#31F5A3]/10 hover:bg-[#31F5A3]/20 border border-[#31F5A3]/30 text-[#31F5A3] transition-all cursor-pointer"
+          title="Télécharger l'APK Android complet (27.3 Mo) avec runtime natif et modèles"
+        >
+          <Download className="w-3.5 h-3.5" />
+          <span className="hidden sm:inline">APK 27Mo</span>
+        </a>
+
+        {settings.authValidationStatus === 'EN_ATTENTE_VALIDATION' && (
+          <button
+            onClick={onOpenAuth}
+            className="flex items-center gap-1.5 px-2 py-1 text-xs font-mono rounded bg-[#d29922]/20 border border-[#d29922]/50 text-[#f2cc60] animate-pulse transition-all cursor-pointer"
+            title="Votre compte est en attente de validation - Cliquez pour saisir votre code reçu par e-mail"
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#d29922]"></span>
+            <span className="text-[10px] font-bold">EN ATTENTE CODE</span>
+          </button>
+        )}
+
         <button
           onClick={onNewSession}
           className="flex items-center gap-1 px-2.5 py-1 text-xs font-mono rounded bg-[#0A1219] hover:bg-[#00E5FF]/20 border border-[#007C91]/40 hover:border-[#00E5FF] text-[#00E5FF] transition-all cursor-pointer"

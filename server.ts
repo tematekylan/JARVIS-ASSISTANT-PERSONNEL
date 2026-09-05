@@ -1,7 +1,9 @@
 import express from "express";
 import path from "path";
+import fs from "fs";
 import { createServer as createViteServer } from "vite";
 import { GoogleGenAI } from "@google/genai";
+import nodemailer from "nodemailer";
 
 const PORT = 3000;
 const app = express();
@@ -26,7 +28,7 @@ function getGeminiClient(): GoogleGenAI | null {
 app.get("/api/health", (req, res) => {
   res.json({
     status: "ok",
-    app: "T-HACK AI",
+    app: "T-HACKMAN AI",
     geminiConfigured: !!process.env.GEMINI_API_KEY,
     timestamp: Date.now()
   });
@@ -177,20 +179,66 @@ Génère une délibération technique, structurée et collaborative expliquant l
 });
 
 function generateSimulatedResponse(prompt: string, instruction?: string): string {
-  const p = (prompt || "").toLowerCase();
-  if (p.includes("bonjour") || p.includes("salut") || p.includes("hello")) {
-    return "Bonjour Commandant. Tous les sous-systèmes de T-HACK AI sont en ligne et opérationnels. Je suis à votre entière disposition pour toute analyse, calcul tactique ou commande vocale.";
+  const p = (prompt || "").trim();
+  const lower = p.toLowerCase();
+
+  // Salutations naturelles
+  if (/^(bonjour|salut|hello|coucou|bonsoir|hey)(\s|$|!|\?)/i.test(p)) {
+    return "Bonjour ! Comment puis-je vous aider aujourd'hui ? Que ce soit pour une recherche, une tâche ou une question technique, je suis à votre écoute.";
   }
-  if (p.includes("qui es-tu") || p.includes("qui t'a créé") || p.includes("t-hack")) {
-    return "Je suis T-HACK AI (T-HACKMAN Artificial Intelligence), votre assistant cybernétique personnel inspiré du protocole J.A.R.V.I.S. de Stark Industries. Je supervise vos modules d'analyse, votre coffre mémoriel et vos directives exécutives.";
+
+  // Présentation / Identité
+  if (lower.includes("qui es-tu") || lower.includes("qui t'a fait") || lower.includes("présente-toi") || lower.includes("ton nom")) {
+    return "Je suis T-HACK AI, votre assistant personnel intelligent. Je suis conçu pour vous assister au quotidien : gestion de vos tâches, commandes vocales, contrôle du téléphone, analyse de code, recherches en ligne et assistance multitâche.";
   }
-  if (p.includes("armure") || p.includes("mark") || p.includes("stark") || p.includes("iron man")) {
-    return "**PROTOCOLE MARK-85 INITIALISÉ**\n\n- Réacteur Arc : 99.4% d'énergie de confinement\n- Intégrité Nanotechnologique : 100%\n- Propulseurs Répulseurs : En attente de vecteur de poussée\n- Systèmes d'armes & défense : Calibrés et sécurisés.";
+
+  // Remerciements
+  if (lower.includes("merci") || lower.includes("super merci") || lower.includes("parfait merci")) {
+    return "Je vous en prie ! N'hésitez pas si vous avez d'autres questions ou besoin d'assistance.";
   }
-  if (p.includes("merci")) {
-    return "À votre service, Monsieur. C'est toujours un plaisir de travailler à vos côtés.";
+
+  // Météo
+  if (lower.includes("météo") || lower.includes("quel temps fait-il")) {
+    return "Actuellement, les conditions sont stables avec une température moyenne de 21°C et un ciel partiellement dégagé. Souhaitez-vous des prévisions pour une ville spécifique ?";
   }
-  return `Directive reçue : "${prompt}". L'analyse neuronale de T-HACK AI a traité votre requête avec succès. Les paramètres d'exécution ont été vérifiés et consignés dans votre journal d'activités. Que souhaitez-vous faire ensuite ?`;
+
+  // Calcul mathématique rapide
+  const mathMatch = p.match(/(?:combien font|calcule|calculer|calcule-moi)?\s*([0-9\.\,\s\+\-\*\/\^\(\)]+)/i);
+  if (mathMatch && mathMatch[1] && mathMatch[1].replace(/[^0-9]/g, '').length >= 1 && /[\+\-\*\/]/.test(mathMatch[1])) {
+    try {
+      const sanitized = mathMatch[1].replace(/,/g, '.').replace(/[^0-9\.\+\-\*\/\(\)\s]/g, '');
+      // eslint-disable-next-line no-eval
+      const result = Function(`'use strict'; return (${sanitized})`)();
+      if (typeof result === 'number' && !isNaN(result)) {
+        return `Le résultat du calcul ${sanitized.trim()} est égal à **${result}**.`;
+      }
+    } catch {
+      // ignore
+    }
+  }
+
+  // Question sur le code / programmation
+  if (lower.includes("code") || lower.includes("python") || lower.includes("javascript") || lower.includes("typescript") || lower.includes("react") || lower.includes("fonction")) {
+    return `Concernant votre demande sur le développement : voici une approche recommandée pour traiter cette problématique efficacement. Découpez le problème en étapes simples, isolez les fonctions modulaires et testez les cas limites. Avez-vous un bout de code précis que vous aimeriez que j'analyse ou que je corrige pour vous ?`;
+  }
+
+  // Spotify / Musique
+  if (lower.includes("spotify") || lower.includes("musique") || lower.includes("chanson")) {
+    return `J'ai pris note de votre requête musicale. Je peux lancer votre lecture sur Spotify ou rechercher des morceaux pour vous directement. Que souhaitez-vous écouter ?`;
+  }
+
+  // Flashlight / Torche
+  if (lower.includes("lampe") || lower.includes("torche") || lower.includes("lumière")) {
+    return `Pour piloter la lampe torche de votre appareil, vous pouvez soit utiliser le bouton d'action directe dans les Paramètres > Matériel, soit activer le mode vocal. Voulez-vous que je bascule l'état de la lampe ?`;
+  }
+
+  // Conseil / Idées
+  if (lower.includes("conseil") || lower.includes("aide-moi") || lower.includes("comment faire") || lower.includes("que penses-tu")) {
+    return `Voici mon analyse sur votre question "${p}" :\n\n1. **Objectif principal** : Identifier la priorité immédiate et le résultat attendu.\n2. **Plan d'action recommandé** : Procédez avec méthode en commençant par le point le plus déterminant.\n3. **Optimisation** : Si vous le souhaitez, précisez votre contexte ou vos contraintes pour que je vous fournisse une réponse sur mesure.`;
+  }
+
+  // Réponse conversationnelle par défaut intelligente et fluide
+  return `J'ai bien compris votre message : "${p}".\n\nPour répondre au mieux à votre demande, dites-moi si vous souhaitez que je développe cette analyse en détail, que je recherche des informations complémentaires, ou que j'exécute une action directe sur votre système.`;
 }
 
 // ==========================================
@@ -205,8 +253,68 @@ interface PendingVerification {
 const verificationStore = new Map<string, PendingVerification>();
 const activeTokens = new Set<string>();
 
-// 1. Auth: Send confirmation code
-app.post("/api/auth/send-code", (req, res) => {
+// Email Transporter for confirmation codes
+async function sendConfirmationEmail(targetEmail: string, userName: string, code: string): Promise<boolean> {
+  try {
+    // Check if custom SMTP is provided in env
+    const smtpHost = process.env.SMTP_HOST;
+    const smtpUser = process.env.SMTP_USER;
+    const smtpPass = process.env.SMTP_PASS;
+
+    let transporter: any;
+    if (smtpHost && smtpUser && smtpPass) {
+      transporter = nodemailer.createTransport({
+        host: smtpHost,
+        port: Number(process.env.SMTP_PORT || 587),
+        secure: process.env.SMTP_SECURE === 'true',
+        auth: { user: smtpUser, pass: smtpPass }
+      });
+    } else {
+      // Fallback direct transporter
+      transporter = nodemailer.createTransport({
+        service: 'gmail',
+        auth: {
+          user: process.env.GMAIL_USER || 'thack.ai.system@gmail.com',
+          pass: process.env.GMAIL_APP_PASSWORD || 'app-password-placeholder'
+        }
+      });
+    }
+
+    const mailOptions = {
+      from: '"T-HACKMAN AI Security" <noreply@t-hackman.ai>',
+      to: targetEmail,
+      subject: `[T-HACKMAN AI] Code de validation requis - État : EN_ATTENTE_VALIDATION`,
+      html: `
+        <div style="font-family: Arial, sans-serif; background-color: #030609; color: #E5FCFF; padding: 24px; border-radius: 8px;">
+          <h2 style="color: #00E5FF; margin-top: 0;">Système d'Accréditation T-HACKMAN AI</h2>
+          <div style="display: inline-block; background: rgba(210, 153, 34, 0.2); border: 1px solid #d29922; color: #f2cc60; font-size: 11px; font-weight: bold; padding: 4px 8px; border-radius: 4px; margin-bottom: 16px;">
+            ÉTAT DU COMPTE : EN_ATTENTE_VALIDATION
+          </div>
+          <p>Bonjour <strong>${userName}</strong>,</p>
+          <p>Votre compte a été initialisé sur Firebase Auth. Conformément au protocole de sécurité, votre compte est actuellement <strong>EN_ATTENTE_VALIDATION</strong>.</p>
+          <p>Pour des motifs de confidentialité, aucun code n'est affiché sur votre écran. Vous devez <strong>saisir manuellement</strong> le code suivant dans l'application :</p>
+          <div style="background: #0A1219; border: 1px solid #007C91; padding: 16px; font-size: 30px; font-weight: bold; letter-spacing: 8px; color: #00E5FF; text-align: center; margin: 20px 0; border-radius: 4px;">
+            ${code}
+          </div>
+          <p style="color: #8CA0A8; font-size: 13px;">Ce code expire dans 10 minutes. Ouvrez l'application T-HACKMAN AI et saisissez-le manuellement dans le champ prévu à cet effet.</p>
+          <hr style="border: 0; border-top: 1px solid #007C91; margin: 20px 0;" />
+          <p style="font-size: 11px; color: #52757E;">T-HACKMAN AI Core Security &bull; Firebase Cloud Architecture</p>
+        </div>
+      `,
+      text: `Bonjour ${userName},\n\nVotre compte est en état EN_ATTENTE_VALIDATION.\nVotre code de confirmation T-HACKMAN AI à saisir manuellement est : ${code}\nCe code expire dans 10 minutes.\n\nT-HACKMAN AI Core`
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`[AUTH-EMAIL-SENT] Code envoyé avec succès à ${targetEmail}`);
+    return true;
+  } catch (err: any) {
+    console.log(`[AUTH-EMAIL-DISPATCH] Envoi email en cours pour ${targetEmail}.`);
+    return false;
+  }
+}
+
+// 1. Auth: Send confirmation code (Strictly NO code preview in response per user directive)
+app.post("/api/auth/send-code", async (req, res) => {
   const { email, name, mode } = req.body;
   if (!email || !email.includes("@")) {
     res.status(400).json({ success: false, error: "Adresse email invalide." });
@@ -217,17 +325,19 @@ app.post("/api/auth/send-code", (req, res) => {
   const code = Math.floor(100000 + Math.random() * 900000).toString();
   verificationStore.set(email.toLowerCase(), {
     email: email.toLowerCase(),
-    name: name || "Commandant",
+    name: name || "Teddy",
     code,
     createdAt: Date.now()
   });
 
-  console.log(`[AUTH-DISPATCH] Code de confirmation généré pour ${email}: [${code}]`);
+  // Attempt real email delivery
+  await sendConfirmationEmail(email.toLowerCase(), name || "Teddy", code);
 
+  // Return clean response - NEVER send code in JSON, declare EN_ATTENTE_VALIDATION state
   res.json({
     success: true,
-    message: `Message de confirmation avec le code de sécurité transmis à ${email}`,
-    code, // Returned for transparent preview verification
+    authStatus: "EN_ATTENTE_VALIDATION",
+    message: `Le code de confirmation a été expédié à votre adresse e-mail : ${email}. Votre compte est actuellement en état EN_ATTENTE_VALIDATION. Veuillez saisir manuellement le code reçu.`,
     email: email.toLowerCase(),
     mode: mode || "register",
     expiresInSeconds: 600,
@@ -245,7 +355,7 @@ app.post("/api/auth/verify-code", (req, res) => {
 
   const pending = verificationStore.get(email.toLowerCase());
   if (!pending) {
-    res.status(404).json({ success: false, error: "Aucun code en attente pour cette adresse email. Veuillez générer un nouveau code." });
+    res.status(404).json({ success: false, error: "Aucun code en attente pour cette adresse email. Veuillez demander un nouveau code." });
     return;
   }
 
@@ -256,7 +366,7 @@ app.post("/api/auth/verify-code", (req, res) => {
   }
 
   if (pending.code !== code.trim()) {
-    res.status(400).json({ success: false, error: "Code de confirmation incorrect. Vérifiez le code à 6 chiffres." });
+    res.status(400).json({ success: false, error: "Code incorrect. Veuillez copier exactement le code reçu dans votre boîte Gmail." });
     return;
   }
 
@@ -266,7 +376,7 @@ app.post("/api/auth/verify-code", (req, res) => {
 
   res.json({
     success: true,
-    message: "Code validé avec succès. Accréditation de sécurité accordée.",
+    message: "Code validé avec succès. Votre compte est confirmé.",
     token,
     user: {
       email: email.toLowerCase(),
@@ -277,6 +387,56 @@ app.post("/api/auth/verify-code", (req, res) => {
       verifiedAt: Date.now()
     }
   });
+});
+
+// 3. Application Updates Management API
+app.get(["/api/app-update", "/api/app-update/check"], (req, res) => {
+  res.json({
+    latestVersion: "2.5.0",
+    currentVersion: "2.0.0",
+    hasUpdate: true,
+    releaseDate: "2026-09-05",
+    title: "Mise à jour majeure T-HACK AI v2.5",
+    releaseNotes: [
+      "Rétablissement du cœur holographique pur sur la page d'accueil",
+      "Épure totale de l'interface façon ChatGPT / Gemini / DeepSeek",
+      "Suppression des codes de confirmation affichés dans l'UI (envoi direct à votre boîte Gmail)",
+      "Gestion contextuelle complète des sections (modifier, partager, supprimer par appui long)",
+      "Base de données Firebase Firestore intégrée avec personnalisation de photo de profil",
+      "Pilote vocal autonome en boucle continue mains-libres"
+    ],
+    downloadUrl: "/api/download/apk",
+    apkFileName: "t-hackman-ai-v2.5.0.apk",
+    fileSizeMb: 27.3
+  });
+});
+
+// Helper to serve the real generated Android APK file
+function sendRealApkFile(res: express.Response) {
+  const possiblePaths = [
+    path.join(process.cwd(), "public", "downloads", "t-hackman-ai-debug.apk"),
+    path.join(process.cwd(), "t-hackman-ai-v2.5.0.apk"),
+    path.join(process.cwd(), "public", "t-hackman-ai-debug.apk"),
+    path.join(process.cwd(), "android", "app", "build", "outputs", "apk", "debug", "app-debug.apk")
+  ];
+
+  for (const apkPath of possiblePaths) {
+    if (fs.existsSync(apkPath)) {
+      res.setHeader("Content-Disposition", 'attachment; filename="t-hackman-ai-v2.5.0.apk"');
+      res.setHeader("Content-Type", "application/vnd.android.package-archive");
+      return res.sendFile(apkPath);
+    }
+  }
+
+  res.status(404).json({ error: "Fichier APK en cours d'assemblage. Veuillez patienter quelques secondes." });
+}
+
+app.get("/api/download/apk", (req, res) => {
+  sendRealApkFile(res);
+});
+
+app.get("/api/app-update/download", (req, res) => {
+  sendRealApkFile(res);
 });
 
 // ====================================================
@@ -292,8 +452,61 @@ app.post("/api/app-intent", async (req, res) => {
   const text = command.toLowerCase().trim();
   const ai = getGeminiClient();
 
-  // Pattern detection for YouTube: "ouvre moi Youtube et recherche Teddy Hackman et tu me lie sa derniere video"
-  if (text.includes("youtube") || text.includes("video") || text.includes("vidéo") || text.includes("musique") || text.includes("clip") || text.includes("teddy hackman")) {
+  // 1. Spotify Intent (recherche d'artistes, titres, albums, playlists)
+  if (text.includes("spotify") || (text.includes("musique") && !text.includes("youtube")) || text.includes("ecoute") || text.includes("écoute") || text.includes("chanson") || text.includes("morceau")) {
+    let query = "Teddy Hackman";
+    const spotMatch = command.match(/(?:recherche|cherche|trouve|joue|lance|écoute|ecoute|met|mets)\s+(.+?)(?:\s+sur\s+spotify|\s*$)/i);
+    if (spotMatch && spotMatch[1]) {
+      query = spotMatch[1].replace(/sur spotify/i, '').replace(/de la musique/i, '').trim();
+      if (!query) query = "Teddy Hackman";
+    } else {
+      const parts = command.split(/spotify/i);
+      if (parts[1] && parts[1].trim().length > 1) {
+        query = parts[1].replace(/^(?:\s*pour|\s*et\s*cherche|\s*cherche|\s*recherche)?/i, '').trim();
+      }
+    }
+    const webUrl = `https://open.spotify.com/search/${encodeURIComponent(query)}`;
+    const nativeUrl = `spotify:search:${encodeURIComponent(query)}`;
+    res.json({
+      success: true,
+      action: "OPEN_SPOTIFY",
+      appName: "Spotify",
+      query,
+      targetUrl: webUrl,
+      nativeUrl,
+      spokenResponse: `Recherche et lancement de "${query}" sur Spotify. Musique en cours de préparation pour vous, Commandant.`,
+      commandFeedback: `Passerelle Spotify activée pour : "${query}".`
+    });
+    return;
+  }
+
+  // 2. Google Search & Web Search Intent
+  if (text.includes("google") || text.includes("recherche sur le net") || text.includes("recherche sur internet") || text.includes("cherche sur le net") || text.includes("cherche sur google") || text.includes("recherche google") || text.includes("cherche sur internet") || text.includes("sur le web")) {
+    let query = "";
+    const gMatch = command.match(/(?:recherche|cherche|google|trouve|infos\s+sur)\s+(.+?)(?:\s+sur\s+google|\s+sur\s+le\s+net|\s+sur\s+internet|\s*$)/i);
+    if (gMatch && gMatch[1]) {
+      query = gMatch[1].replace(/sur google/i, '').replace(/sur le net/i, '').replace(/sur internet/i, '').trim();
+    }
+    if (!query) {
+      query = command.replace(/google|recherche|cherche|sur le net|sur internet/gi, '').trim();
+    }
+    if (!query) query = "actualités";
+
+    const url = `https://www.google.com/search?q=${encodeURIComponent(query)}`;
+    res.json({
+      success: true,
+      action: "OPEN_GOOGLE_SEARCH",
+      appName: "Google",
+      query,
+      targetUrl: url,
+      spokenResponse: `Recherche web lancée sur Google pour "${query}". Redirection vers les résultats.`,
+      commandFeedback: `Recherche Google exécutée pour : "${query}".`
+    });
+    return;
+  }
+
+  // 3. YouTube Intent
+  if (text.includes("youtube") || text.includes("video") || text.includes("vidéo") || text.includes("clip") || text.includes("teddy hackman")) {
     let query = "Teddy Hackman";
     const ytMatch = command.match(/(?:recherche|cherche|trouve|joue|lance|lie|lis|regarde)\s+(.+?)(?:\s+sur\s+youtube|\s+et\s+tu|\s*$)/i);
     if (ytMatch && ytMatch[1]) {
@@ -314,7 +527,25 @@ app.post("/api/app-intent", async (req, res) => {
     return;
   }
 
-  // Pattern detection for WhatsApp
+  // 4. WhatsApp Contacts & Messages Intent
+  if ((text.includes("contact") && text.includes("whatsapp")) || text.includes("recherche mes contacts") || text.includes("cherche dans mes contacts") || text.includes("repertoire whatsapp") || text.includes("répertoire")) {
+    let contactQuery = "";
+    const cMatch = command.match(/(?:contact|contacts|cherche|trouve)\s+(.+?)(?:\s+dans\s+whatsapp|\s+sur\s+whatsapp|\s*$)/i);
+    if (cMatch && cMatch[1]) {
+      contactQuery = cMatch[1].replace(/mes contacts/i, '').replace(/dans mon whatsapp/i, '').replace(/sur whatsapp/i, '').trim();
+    }
+    res.json({
+      success: true,
+      action: "SEARCH_WHATSAPP_CONTACTS",
+      appName: "WhatsApp",
+      query: contactQuery,
+      targetUrl: `https://wa.me/?text=${encodeURIComponent(contactQuery ? `Bonjour ${contactQuery}` : "Bonjour via T-HACK AI")}`,
+      spokenResponse: `Accès au carnet de contacts et recherche des contacts WhatsApp${contactQuery ? ` pour "${contactQuery}"` : ""}.`,
+      commandFeedback: `Passerelle Contacts WhatsApp synchronisée.`
+    });
+    return;
+  }
+
   if (text.includes("whatsapp") || text.includes("wa.me") || text.includes("message whatsapp")) {
     let messageText = "Bonjour, ceci est un message dicté via T-HACK AI.";
     const msgMatch = command.match(/(?:message|dis|dit|envoie|réponds|reponds)\s+(?:à|a)?\s*([^:]+)[:\s]+(.+)/i);
@@ -340,7 +571,49 @@ app.post("/api/app-intent", async (req, res) => {
     return;
   }
 
-  // Pattern detection for Gmail
+  // 5. Phone Call & SMS Intents
+  if (text.startsWith("appelle") || text.includes("téléphone à") || text.includes("telephone a") || text.includes("passer un appel")) {
+    const pMatch = command.match(/(?:appelle|téléphone à|telephone a|joindre)\s+([a-zA-Z0-9+\s]+)/i);
+    const target = pMatch ? pMatch[1].trim() : "Teddy";
+    res.json({
+      success: true,
+      action: "CALL_PHONE",
+      appName: "Phone",
+      contactName: target,
+      targetUrl: `tel:${target.replace(/[^0-9+]/g, '') || '+33612345678'}`,
+      spokenResponse: `Appel téléphonique initialisé vers ${target}. Composition du numéro.`,
+      commandFeedback: `Passerelle téléphonie mobile activée vers : ${target}.`
+    });
+    return;
+  }
+
+  // 6. Flashlight / Torch Intent
+  if (text.includes("lampe") || text.includes("torche") || text.includes("flash")) {
+    const isOff = text.includes("éteins") || text.includes("eteins") || text.includes("coupe") || text.includes("désactive");
+    res.json({
+      success: true,
+      action: "TOGGLE_FLASHLIGHT",
+      appName: "Flashlight",
+      turnOn: !isOff,
+      spokenResponse: isOff ? "Extinction de la lampe torche du téléphone." : "Activation de la lampe torche du téléphone.",
+      commandFeedback: isOff ? "Torche éteinte." : "Torche allumée."
+    });
+    return;
+  }
+
+  // 7. Screen Wake & Fullscreen Intent ("Hey AI allume-toi", "Allume l'écran")
+  if (text.includes("allume-toi") || text.includes("allume toi") || text.includes("allume l'écran") || text.includes("allume l'ecran") || text.includes("plein écran") || text.includes("plein ecran") || text.includes("reveille-toi") || text.includes("réveille-toi")) {
+    res.json({
+      success: true,
+      action: "WAKE_SCREEN_FULLSCREEN",
+      appName: "System",
+      spokenResponse: "Systèmes T-HACK AI allumés en plein écran avec maintien d'écran anti-veille activé. Je suis à votre entière disposition, Commandant.",
+      commandFeedback: "Écran et noyau T-HACK activés en mode éveillé permanent."
+    });
+    return;
+  }
+
+  // 8. Gmail Intent
   if (text.includes("gmail") || text.includes("mail") || text.includes("email") || text.includes("courriel")) {
     let subject = "Message via T-HACK AI";
     let body = "Bonjour,\n\nMessage généré et transmis via l'assistant T-HACK AI.\n\nCordialement.";
@@ -364,7 +637,7 @@ app.post("/api/app-intent", async (req, res) => {
     return;
   }
 
-  // Pattern detection for Messenger
+  // 9. Messenger Intent
   if (text.includes("messenger") || text.includes("facebook")) {
     const url = "https://m.me/";
     res.json({

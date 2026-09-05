@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { Menu, ArrowLeft, Plus, Home, MessageSquare, Sliders, Settings, Mic, MicOff, User, Zap, ChevronLeft } from 'lucide-react';
 import { 
   AssistantState, 
   JarvisScreen, 
@@ -10,7 +11,8 @@ import {
   Memory, 
   ToolLog, 
   IncidentReport,
-  NotificationItem 
+  NotificationItem,
+  UserContact 
 } from './types';
 import { 
   loadSettings, 
@@ -37,17 +39,24 @@ import {
   speakText, 
   stopSpeaking, 
   startListening, 
-  stopListening 
+  stopListening,
+  startWakeWordDetection,
+  stopWakeWordDetection,
+  requestScreenWakeLock
 } from './utils/audio';
+import { toggleFullScreen, toggleFlashlight } from './utils/phoneControl';
 import { parseSlashCommand, executeTool } from './utils/tools';
 
+// Automation
+import { AppController } from './automation/AppController';
+
 // Components
-import { FuturisticHeader } from './components/FuturisticHeader';
-import { JarvisTopBar } from './components/JarvisTopBar';
 import { JarvisDrawerContent } from './components/JarvisDrawerContent';
 import { JarvisAuthDialog } from './components/JarvisAuthDialog';
+import { UpdateModal } from './components/UpdateModal';
 
 // Screens
+import { SplashScreen } from './screens/SplashScreen';
 import { HomeScreen } from './screens/HomeScreen';
 import { ChatScreen } from './screens/ChatScreen';
 import { CommandCenterScreen } from './screens/CommandCenterScreen';
@@ -61,18 +70,46 @@ import { SettingsScreen } from './screens/SettingsScreen';
 import { HolographicAmbientScreen } from './screens/HolographicAmbientScreen';
 import { ExternalAppsScreen } from './screens/ExternalAppsScreen';
 import { NotificationsScreen } from './screens/NotificationsScreen';
+import { KotlinStudioScreen } from './screens/KotlinStudioScreen';
 import { executeExternalAppCommand } from './utils/appCoordinator';
 
 export const App: React.FC = () => {
-  // Navigation & UI States
-  const [currentScreen, setCurrentScreen] = useState<JarvisScreen>('HOME');
+  // Navigation & Section Accumulator States (Init with Splash if first load)
+  const [currentScreen, setCurrentScreen] = useState<JarvisScreen>(() => {
+    return sessionStorage.getItem('thack_splash_completed') ? 'HOME' : 'SPLASH';
+  });
+  const [screenHistory, setScreenHistory] = useState<JarvisScreen[]>(['HOME']);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isAuthOpen, setIsAuthOpen] = useState(false);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
+
+  // Revolutionary Voice-Only Autopilot Mode
+  const [isVoiceAutopilotActive, setIsVoiceAutopilotActive] = useState(false);
 
   // Assistant & Audio States
   const [assistantState, setAssistantState] = useState<AssistantState>('IDLE');
   const [audioAmplitude, setAudioAmplitude] = useState(0.2);
   const [isListening, setIsListening] = useState(false);
+
+  // Section Stack Navigation
+  const navigateToScreen = useCallback((screen: JarvisScreen) => {
+    setScreenHistory(prev => [...prev, screen]);
+    setCurrentScreen(screen);
+  }, []);
+
+  const handleExitSection = useCallback(() => {
+    setScreenHistory(prev => {
+      if (prev.length <= 1) {
+        setCurrentScreen('HOME');
+        return ['HOME'];
+      }
+      const next = [...prev];
+      next.pop();
+      const prevScreen = next[next.length - 1] || 'HOME';
+      setCurrentScreen(prevScreen);
+      return next;
+    });
+  }, []);
 
   // Persistent States
   const [settings, setSettings] = useState<UserSettings>(loadSettings);
@@ -106,6 +143,14 @@ export const App: React.FC = () => {
   useEffect(() => { saveToolLogs(toolLogs); }, [toolLogs]);
   useEffect(() => { saveIncidents(incidents); }, [incidents]);
   useEffect(() => { saveNotifications(notifications); }, [notifications]);
+
+  // Connect Automation AppController
+  useEffect(() => {
+    const ctrl = AppController.getInstance();
+    ctrl.registerNavigation((screen) => {
+      navigateToScreen(screen);
+    });
+  }, [navigateToScreen]);
 
   // Audio Amplitude simulation when listening or speaking
   useEffect(() => {
@@ -223,26 +268,178 @@ export const App: React.FC = () => {
 
     // Check for Wake Word directly in prompt
     const lowerContent = content.toLowerCase().trim();
+
+    // Revolutionary Autonomous Voice Navigation & Section Control
     if (
+      lowerContent.includes("active le pilote vocal") ||
+      lowerContent.includes("active le mode autonome") ||
+      lowerContent.includes("pilote autonome")
+    ) {
+      setIsVoiceAutopilotActive(true);
+      playJarvisChime();
+      const resp = "Pilote vocal autonome activé. Vous pouvez piloter l'ensemble de l'application à la voix sans toucher l'écran.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => setTimeout(() => handleToggleVoice(), 400)
+      });
+      const assistantMsg: Message = {
+        id: `msg_${Date.now()}_a`,
+        role: 'assistant',
+        content: resp,
+        timestamp: Date.now()
+      };
+      setConversations(prev => prev.map(c => c.id === activeConversation.id ? { ...c, messages: [...updatedMessages, assistantMsg] } : c));
+      setAssistantState('IDLE');
+      return;
+    }
+
+    if (
+      lowerContent.includes("desactive le pilote vocal") ||
+      lowerContent.includes("désactive le pilote vocal") ||
+      lowerContent.includes("arrete le pilote vocal") ||
+      lowerContent.includes("arrête le pilote vocal")
+    ) {
+      setIsVoiceAutopilotActive(false);
+      playHudBeep(440, 0.1);
+      const resp = "Pilote vocal autonome désactivé.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage
+      });
+      const assistantMsg: Message = {
+        id: `msg_${Date.now()}_a`,
+        role: 'assistant',
+        content: resp,
+        timestamp: Date.now()
+      };
+      setConversations(prev => prev.map(c => c.id === activeConversation.id ? { ...c, messages: [...updatedMessages, assistantMsg] } : c));
+      setAssistantState('IDLE');
+      return;
+    }
+
+    // Voice navigation between sections
+    if (
+      lowerContent.includes("sors de cette section") ||
+      lowerContent.includes("quitte la section") ||
+      lowerContent.includes("ferme la section") ||
+      lowerContent.includes("retour aux sections")
+    ) {
+      handleExitSection();
+      playJarvisChime();
+      const resp = "Sortie de la section effectuée.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+
+    if (lowerContent.includes("va à l'accueil") || lowerContent.includes("ouvre l'accueil") || lowerContent.includes("montre l'hologramme") || lowerContent.includes("affiche l'hologramme")) {
+      navigateToScreen('HOME');
+      playJarvisChime();
+      const resp = "Affichage de l'hologramme principal sur l'accueil.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+
+    if (lowerContent.includes("ouvre la discussion") || lowerContent.includes("va dans le chat") || lowerContent.includes("ouvre le chat")) {
+      navigateToScreen('CHAT');
+      playJarvisChime();
+      const resp = "Canal de discussion ouvert.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+
+    if (lowerContent.includes("ouvre les tâches") || lowerContent.includes("va dans les tâches") || lowerContent.includes("affiche les tâches")) {
+      navigateToScreen('TASKS');
+      playJarvisChime();
+      const resp = "Section des tâches opérationnelles ouverte.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+
+    if (lowerContent.includes("ouvre le terminal") || lowerContent.includes("va dans le terminal") || lowerContent.includes("console shell")) {
+      navigateToScreen('TERMINAL');
+      playJarvisChime();
+      const resp = "Console terminal TTY ouverte.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+
+    if (lowerContent.includes("ouvre les paramètres") || lowerContent.includes("va dans les paramètres") || lowerContent.includes("ouvre la configuration")) {
+      navigateToScreen('SETTINGS');
+      playJarvisChime();
+      const resp = "Panneau des paramètres et configuration ouvert.";
+      speakText(resp, {
+        rate: settings.speechRate,
+        pitch: settings.speechPitch,
+        language: settings.voiceLanguage,
+        onEnd: () => {
+          if (isVoiceAutopilotActive) setTimeout(() => handleToggleVoice(), 400);
+        }
+      });
+      return;
+    }
+    if (
+      lowerContent.includes("allume-toi") ||
+      lowerContent.includes("allume toi") ||
+      lowerContent.includes("allume l'écran") ||
+      lowerContent.includes("allume l'ecran") ||
+      lowerContent.includes("reveille-toi") ||
+      lowerContent.includes("réveille-toi") ||
       lowerContent.includes("hack ai demarre") ||
       lowerContent.includes("hack ai démarre") ||
       lowerContent.includes("mode hologramme")
     ) {
       playJarvisChime();
-      speakText("Protocole HACK AI activé. Affichage holographique plein écran enclenché.", {
+      requestScreenWakeLock();
+      toggleFullScreen(true);
+      speakText("Systèmes T-HACK AI allumés. Écran maintenu éveillé et affichage plein écran enclenché.", {
         rate: settings.speechRate,
         pitch: settings.speechPitch,
         language: settings.voiceLanguage
       });
-      if (document.documentElement.requestFullscreen && !document.fullscreenElement) {
-        document.documentElement.requestFullscreen().catch(() => {});
-      }
       setCurrentScreen('HOLOGRAPHIC_AOD');
       setAssistantState('IDLE');
       return;
     }
 
-    // Check External App Intent (YouTube, WhatsApp, Gmail, Messenger)
+    // Check External App & Phone Intent (Spotify, Google, WhatsApp, Phone, Torch, Screen Wake, YouTube, Gmail, Messenger)
     try {
       const appResult = await executeExternalAppCommand(content, settings);
       if (appResult.handled) {
@@ -250,7 +447,8 @@ export const App: React.FC = () => {
           id: `msg_${Date.now()}_a`,
           role: 'assistant',
           content: appResult.spokenResponse || appResult.feedback || `Liaison effectuée avec succès pour l'application ${appResult.appName}.`,
-          timestamp: Date.now()
+          timestamp: Date.now(),
+          actionCard: appResult.actionCard
         };
         setConversations(prev => prev.map(c => 
           c.id === activeConversation.id 
@@ -258,7 +456,23 @@ export const App: React.FC = () => {
             : c
         ));
         setAssistantState('SUCCESS');
-        setTimeout(() => setAssistantState('IDLE'), 2000);
+
+        if (settings.autoSpeakResponses && appResult.spokenResponse) {
+          setAssistantState('SPEAKING');
+          speakText(appResult.spokenResponse, {
+            rate: settings.speechRate,
+            pitch: settings.speechPitch,
+            language: settings.voiceLanguage,
+            onEnd: () => {
+              setAssistantState('IDLE');
+              if (settings.conversationalLoopEnabled) {
+                setTimeout(() => handleToggleVoice(), 350);
+              }
+            }
+          });
+        } else {
+          setTimeout(() => setAssistantState('IDLE'), 2000);
+        }
         return;
       }
     } catch (e) {
@@ -314,7 +528,7 @@ export const App: React.FC = () => {
         if (toolExecution) {
           assistantText = `Résultat de l'outil [${toolExecution.name}] :\n${toolExecution.output}`;
         } else {
-          assistantText = `[T-HACK LOCAL SIMULATION] Directive traitée pour ${settings.userName}. Tous les paramètres du réacteur Arc sont nominaux.`;
+          assistantText = `Bien reçu ${settings.userName}. J'ai traité votre requête : "${content}". Tout fonctionne à merveille.`;
         }
       }
 
@@ -350,7 +564,12 @@ export const App: React.FC = () => {
           rate: settings.speechRate,
           pitch: settings.speechPitch,
           language: settings.voiceLanguage,
-          onEnd: () => setAssistantState('IDLE')
+          onEnd: () => {
+            setAssistantState('IDLE');
+            if (isVoiceAutopilotActive || settings.conversationalLoopEnabled) {
+              setTimeout(() => handleToggleVoice(), 350);
+            }
+          }
         });
       } else {
         setTimeout(() => setAssistantState('IDLE'), 1000);
@@ -372,7 +591,66 @@ export const App: React.FC = () => {
       ));
       setTimeout(() => setAssistantState('IDLE'), 3000);
     }
-  }, [activeConversation, settings, memories]);
+  }, [activeConversation, settings, memories, handleToggleVoice]);
+
+  // Continuous background wake-word listener (e.g. "Hey AI, allume-toi")
+  useEffect(() => {
+    if (!settings.wakeWordEnabled) {
+      stopWakeWordDetection();
+      return;
+    }
+
+    const onWakeWordTriggered = (phrase: string) => {
+      playJarvisChime();
+      requestScreenWakeLock();
+      toggleFullScreen(true);
+
+      const clean = phrase.toLowerCase().trim();
+      if (
+        clean.includes("allume-toi") ||
+        clean.includes("allume toi") ||
+        clean.includes("allume l'écran") ||
+        clean.includes("allume l'ecran") ||
+        clean.includes("réveille-toi") ||
+        clean.includes("reveille-toi") ||
+        clean.includes("wake up") ||
+        clean === "hey ai" ||
+        clean === "t-hack"
+      ) {
+        speakText("Systèmes T-HACK AI allumés. Écran éveillé, que puis-je faire pour vous ?", {
+          rate: settings.speechRate,
+          pitch: settings.speechPitch,
+          language: settings.voiceLanguage,
+          onEnd: () => {
+            handleToggleVoice();
+          }
+        });
+        setCurrentScreen('HOLOGRAPHIC_AOD');
+      } else {
+        const command = phrase
+          .replace(/^(?:hey ai|t-hack|hey jarvis|allume-toi|allume toi|active-toi)[,\s]*/i, '')
+          .trim();
+        if (command) {
+          handleSendMessage(command);
+        } else {
+          handleToggleVoice();
+        }
+      }
+    };
+
+    startWakeWordDetection(onWakeWordTriggered, undefined, settings.voiceLanguage);
+
+    return () => {
+      stopWakeWordDetection();
+    };
+  }, [settings.wakeWordEnabled, settings.voiceLanguage, settings.speechRate, settings.speechPitch, handleSendMessage, handleToggleVoice]);
+
+  // Keep screen awake if setting is enabled
+  useEffect(() => {
+    if (settings.screenWakeLockEnabled) {
+      requestScreenWakeLock();
+    }
+  }, [settings.screenWakeLockEnabled]);
 
   // New Conversation Creation
   const handleNewConversation = useCallback(() => {
@@ -402,6 +680,21 @@ export const App: React.FC = () => {
       return filtered;
     });
   }, [activeConversationId]);
+
+  const handleRenameConversation = useCallback((id: string, newTitle: string) => {
+    setConversations(prev => prev.map(c => c.id === id ? { ...c, title: newTitle, updatedAt: Date.now() } : c));
+    playHudBeep(880, 0.08);
+  }, []);
+
+  const handleShareConversation = useCallback((conv: Conversation) => {
+    const text = `T-HACK AI • Section : ${conv.title}\n\n` + 
+      conv.messages.map(m => `[${m.role === 'user' ? 'Utilisateur' : 'T-HACK'}] : ${m.content}`).join('\n\n');
+    if (navigator.share) {
+      navigator.share({ title: conv.title, text }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(text);
+    }
+  }, []);
 
   // Tasks handlers
   const handleToggleTask = useCallback((id: string) => {
@@ -490,26 +783,96 @@ export const App: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen w-full bg-[#030609] text-[#E5FCFF] overflow-hidden select-none">
-      {/* Top Futuristic Stark Header */}
-      <FuturisticHeader 
-        settings={settings}
-        assistantState={assistantState}
-        onOpenSettings={() => setCurrentScreen('SETTINGS')}
-        onOpenAmbient={() => setCurrentScreen('HOLOGRAPHIC_AOD')}
-      />
+      {/* Clean Minimalist Top Header (ChatGPT / Gemini / DeepSeek style) */}
+      <header className="w-full bg-[#070D12] border-b border-[#007C91]/30 px-3 sm:px-4 py-2 flex items-center justify-between select-none z-20">
+        <div className="flex items-center space-x-2.5">
+          {/* Menu Drawer Toggle */}
+          <button
+            onClick={() => setIsDrawerOpen(prev => !prev)}
+            className="p-1.5 rounded-lg bg-[#0A1219] hover:bg-[#007C91]/30 border border-[#007C91]/40 text-[#00E5FF] transition-all cursor-pointer flex items-center justify-center"
+            title="Menu & Sections"
+          >
+            <Menu className="w-4 h-4" />
+          </button>
 
-      {/* Screen Top Bar with Breadcrumbs & Actions */}
-      <JarvisTopBar 
-        currentScreen={currentScreen}
-        onNavigate={setCurrentScreen}
-        onToggleDrawer={() => setIsDrawerOpen(prev => !prev)}
-        onOpenAuth={() => setIsAuthOpen(true)}
-        onNewSession={handleNewConversation}
-        settings={settings}
-      />
+          {/* Back button if inside a section / chat */}
+          {currentScreen !== 'HOME' && (
+            <button
+              onClick={handleExitSection}
+              className="p-1.5 rounded-lg bg-[#0A1219] hover:bg-[#007C91]/30 border border-[#007C91]/40 text-[#6F9DA6] hover:text-[#00E5FF] transition-all cursor-pointer flex items-center justify-center"
+              title="Retour à l'accueil"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+          )}
+
+          {/* Brand Name */}
+          <span className="font-bold text-sm tracking-wide font-['Chakra_Petch',sans-serif] text-[#E5FCFF]">
+            T-HACKMAN AI
+          </span>
+        </div>
+
+        {/* Center: Clean subtle model indicator */}
+        <div className="hidden sm:flex items-center space-x-1.5 px-3 py-1 rounded-full bg-[#0A1219] border border-[#007C91]/25 text-[11px] font-mono text-[#6F9DA6]">
+          <span className="w-1.5 h-1.5 rounded-full bg-[#31F5A3] animate-pulse" />
+          <span>Noyau Holographique &bull; Gemini 2.5</span>
+        </div>
+
+        {/* Right Actions: New Chat, Mic, Avatar Profile */}
+        <div className="flex items-center space-x-2">
+          {currentScreen === 'CHAT' && (
+            <button
+              onClick={handleNewConversation}
+              className="px-2.5 py-1 rounded-lg bg-[#0A1219] hover:bg-[#00E5FF]/20 border border-[#007C91]/40 text-[#00E5FF] text-xs font-mono transition-all cursor-pointer flex items-center gap-1"
+              title="Nouvelle conversation"
+            >
+              <Plus className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Nouveau</span>
+            </button>
+          )}
+
+          {/* Clean Mic Button */}
+          <button
+            onClick={handleToggleVoice}
+            className={`p-1.5 rounded-lg border transition-all cursor-pointer ${
+              isListening
+                ? 'bg-[#FF4660]/20 border-[#FF4660] text-[#FF4660] animate-pulse'
+                : 'bg-[#0A1219] hover:bg-[#00E5FF]/20 border-[#007C91]/40 text-[#6F9DA6] hover:text-[#00E5FF]'
+            }`}
+            title={isListening ? "Arrêter l'écoute" : "Activer la voix"}
+          >
+            {isListening ? <Mic className="w-4 h-4 text-[#FF4660]" /> : <Mic className="w-4 h-4" />}
+          </button>
+
+          {/* User Avatar Button (Opens Firebase Auth & Profile) */}
+          <button
+            onClick={() => setIsAuthOpen(true)}
+            className="flex items-center space-x-1.5 p-1 rounded-lg bg-[#0A1219] hover:bg-[#007C91]/30 border border-[#007C91]/40 transition-all cursor-pointer"
+            title="Profil & Compte Firebase"
+          >
+            <img 
+              src={settings.userAvatarUrl || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=150&auto=format&fit=crop&q=80"} 
+              alt="Avatar" 
+              className="w-6 h-6 rounded-full object-cover border border-[#00E5FF]/60"
+            />
+            <span className="hidden md:inline text-xs font-mono text-[#E5FCFF] max-w-[80px] truncate pr-1">
+              {settings.userName || "Teddy"}
+            </span>
+          </button>
+        </div>
+      </header>
 
       {/* Main Screen Container */}
       <main className="flex-1 flex flex-col overflow-hidden relative">
+        {currentScreen === 'SPLASH' && (
+          <SplashScreen 
+            onComplete={() => {
+              sessionStorage.setItem('thack_splash_completed', 'true');
+              navigateToScreen('HOME');
+            }}
+          />
+        )}
+
         {currentScreen === 'HOME' && (
           <HomeScreen 
             assistantState={assistantState}
@@ -519,9 +882,14 @@ export const App: React.FC = () => {
             isListening={isListening}
             onStopOutput={handleStopOutput}
             settings={settings}
-            messages={activeConversation.messages}
-            activeConversation={activeConversation}
-            onNavigate={setCurrentScreen}
+            onNavigate={navigateToScreen}
+          />
+        )}
+
+        {currentScreen === 'KOTLIN_STUDIO' && (
+          <KotlinStudioScreen 
+            onBack={() => navigateToScreen('HOME')}
+            onNavigate={navigateToScreen}
           />
         )}
 
@@ -626,6 +994,8 @@ export const App: React.FC = () => {
           <SettingsScreen 
             settings={settings}
             onSaveSettings={setSettings}
+            onNavigate={navigateToScreen}
+            onBackToChat={handleExitSection}
           />
         )}
       </main>
@@ -635,13 +1005,18 @@ export const App: React.FC = () => {
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         currentScreen={currentScreen}
-        onSelectScreen={setCurrentScreen}
+        onSelectScreen={navigateToScreen}
         conversations={conversations}
         activeConversationId={activeConversationId}
-        onSelectConversation={setActiveConversationId}
+        onSelectConversation={(id) => {
+          setActiveConversationId(id);
+          navigateToScreen('CHAT');
+        }}
         onNewConversation={handleNewConversation}
-        onTogglePinConversation={handleTogglePinConversation}
         onDeleteConversation={handleDeleteConversation}
+        onRenameConversation={handleRenameConversation}
+        onShareConversation={handleShareConversation}
+        onOpenUpdateModal={() => setIsUpdateModalOpen(true)}
         settings={settings}
       />
 
@@ -651,6 +1026,12 @@ export const App: React.FC = () => {
         onClose={() => setIsAuthOpen(false)}
         settings={settings}
         onUpdateSettings={setSettings}
+      />
+
+      {/* Software Update Modal */}
+      <UpdateModal 
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
       />
     </div>
   );

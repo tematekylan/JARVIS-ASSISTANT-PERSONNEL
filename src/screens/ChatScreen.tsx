@@ -13,10 +13,17 @@ import {
   User, 
   AlertTriangle,
   RefreshCw,
-  Square
+  Square,
+  ExternalLink,
+  Music,
+  Globe,
+  PhoneCall,
+  Flashlight,
+  Maximize2
 } from 'lucide-react';
-import { Message, AssistantState, UserSettings } from '../types';
+import { Message, AssistantState, UserSettings, ActionCard } from '../types';
 import { speakText, stopSpeaking } from '../utils/audio';
+import { launchSpotifySearch, launchGoogleSearch, launchWhatsAppChat, launchPhoneCall, toggleFlashlight } from '../utils/phoneControl';
 
 interface ChatScreenProps {
   messages: Message[];
@@ -74,43 +81,21 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
     }
   };
 
-  const chips = [
-    "/image",
-    "/video",
-    "/humain",
-    "/plan",
-    "/code",
-    "/debug",
-    "/resume",
-    "/ironman"
-  ];
-
   return (
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-[#030609]">
       {/* Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3.5">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center p-6 space-y-3 select-none">
-            <div className="w-12 h-12 rounded-full bg-[#0A1219] border border-[#00E5FF]/40 flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.2)]">
-              <Sparkles className="w-6 h-6 animate-pulse" />
+            <div className="w-12 h-12 rounded-full bg-[#0A1219] border border-[#00E5FF]/30 flex items-center justify-center text-[#00E5FF] shadow-[0_0_15px_rgba(0,229,255,0.15)]">
+              <Sparkles className="w-5 h-5 text-[#00E5FF]" />
             </div>
-            <h2 className="text-base font-bold font-['Chakra_Petch',sans-serif] text-[#E5FCFF]">
-              CANAL DE DISCUSSION T-HACK INITIALISÉ
+            <h2 className="text-base font-bold font-['Chakra_Petch',sans-serif] text-[#E5FCFF] tracking-wider">
+              T-HACK AI
             </h2>
-            <p className="text-xs text-[#6F9DA6] max-w-sm">
-              Posez une question, donnez une directive technique ou utilisez une slash-commande pour déclencher les modules avancés.
+            <p className="text-xs text-[#6F9DA6] max-w-xs font-mono">
+              Prêt pour vos directives et requêtes.
             </p>
-            <div className="flex flex-wrap justify-center gap-1.5 pt-2 max-w-md">
-              {chips.map((c) => (
-                <button
-                  key={c}
-                  onClick={() => onSendMessage(c + " ")}
-                  className="px-2.5 py-1 text-xs font-mono rounded bg-[#0A1219] hover:bg-[#007C91]/30 text-[#78F7FF] border border-[#007C91]/40 cursor-pointer"
-                >
-                  {c}
-                </button>
-              ))}
-            </div>
           </div>
         ) : (
           messages.map((msg) => {
@@ -187,6 +172,53 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
                         </button>
                       </div>
                     </div>
+
+                    {/* Rich ActionCard for Phone & External Apps */}
+                    {msg.actionCard && (
+                      <div className="mt-2.5 p-3 rounded bg-[#070D12] border border-[#00E5FF]/40 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center space-x-2">
+                            {msg.actionCard.appName === 'Spotify' && <Music className="w-4 h-4 text-[#1DB954]" />}
+                            {msg.actionCard.appName === 'Google' && <Globe className="w-4 h-4 text-[#4285F4]" />}
+                            {msg.actionCard.appName === 'Phone' && <PhoneCall className="w-4 h-4 text-[#FFDE00]" />}
+                            {msg.actionCard.appName === 'Flashlight' && <Flashlight className="w-4 h-4 text-[#FFDE00]" />}
+                            {msg.actionCard.appName === 'System' && <Maximize2 className="w-4 h-4 text-[#00E5FF]" />}
+                            <span className="text-xs font-mono font-bold text-[#E5FCFF]">{msg.actionCard.title}</span>
+                          </div>
+                          <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-[#00E5FF]/15 text-[#00E5FF] uppercase">
+                            {msg.actionCard.appName}
+                          </span>
+                        </div>
+
+                        {msg.actionCard.extraDetails && (
+                          <div className="text-[11px] font-mono text-[#6F9DA6]">
+                            {msg.actionCard.extraDetails}
+                          </div>
+                        )}
+
+                        <div className="pt-1 flex gap-2">
+                          <button
+                            onClick={() => {
+                              if (msg.actionCard?.appName === 'Spotify' && msg.actionCard.query) {
+                                launchSpotifySearch(msg.actionCard.query);
+                              } else if (msg.actionCard?.appName === 'Google' && msg.actionCard.query) {
+                                launchGoogleSearch(msg.actionCard.query);
+                              } else if (msg.actionCard?.actionUrl.startsWith('tel:')) {
+                                launchPhoneCall(msg.actionCard.actionUrl);
+                              } else if (msg.actionCard?.actionUrl === '#flashlight') {
+                                toggleFlashlight();
+                              } else if (msg.actionCard?.actionUrl) {
+                                window.open(msg.actionCard.actionUrl, '_blank', 'noopener,noreferrer');
+                              }
+                            }}
+                            className="flex-1 py-1.5 px-3 rounded font-mono text-xs font-bold flex items-center justify-center space-x-1.5 transition-all cursor-pointer bg-[#00E5FF]/20 hover:bg-[#00E5FF]/30 border border-[#00E5FF] text-[#00E5FF] shadow-[0_0_10px_rgba(0,229,255,0.2)]"
+                          >
+                            <span>{msg.actionCard.buttonLabel || "Exécuter l'action"}</span>
+                            <ExternalLink className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -209,20 +241,6 @@ export const ChatScreen: React.FC<ChatScreenProps> = ({
         )}
 
         <div ref={messagesEndRef} />
-      </div>
-
-      {/* Quick Slash Commands Strip */}
-      <div className="bg-[#070D12] border-t border-[#007C91]/30 px-3 py-1 flex items-center space-x-1.5 overflow-x-auto no-scrollbar select-none">
-        <span className="text-[10px] font-mono text-[#6F9DA6] uppercase shrink-0">Commandes :</span>
-        {chips.map((c) => (
-          <button
-            key={c}
-            onClick={() => setInputText(c + " ")}
-            className="text-[11px] font-mono px-2 py-0.5 rounded bg-[#0A1219] hover:bg-[#007C91]/30 text-[#78F7FF] border border-[#007C91]/30 shrink-0 cursor-pointer"
-          >
-            {c}
-          </button>
-        ))}
       </div>
 
       {/* Input Bar */}

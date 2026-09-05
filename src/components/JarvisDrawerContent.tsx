@@ -1,23 +1,19 @@
-import React from 'react';
+import React, { useState, useRef } from 'react';
 import { 
-  Home, 
   MessageSquare, 
-  Cpu, 
-  Terminal as TermIcon, 
-  Sliders, 
-  Brain, 
-  FileText, 
-  CheckSquare, 
-  Activity, 
-  Eye, 
   Settings, 
-  Pin, 
   Trash2, 
   Plus, 
   X,
-  ShieldCheck,
-  Tv,
-  Bell
+  Share2,
+  Edit2,
+  Download,
+  Check,
+  Sparkles,
+  Sliders,
+  CheckSquare,
+  FileCode2,
+  Terminal
 } from 'lucide-react';
 import { Conversation, JarvisScreen, UserSettings } from '../types';
 
@@ -30,8 +26,10 @@ interface JarvisDrawerContentProps {
   activeConversationId: string;
   onSelectConversation: (id: string) => void;
   onNewConversation: () => void;
-  onTogglePinConversation: (id: string) => void;
   onDeleteConversation: (id: string) => void;
+  onRenameConversation?: (id: string, newTitle: string) => void;
+  onShareConversation?: (conv: Conversation) => void;
+  onOpenUpdateModal?: () => void;
   settings: UserSettings;
 }
 
@@ -44,176 +42,377 @@ export const JarvisDrawerContent: React.FC<JarvisDrawerContentProps> = ({
   activeConversationId,
   onSelectConversation,
   onNewConversation,
-  onTogglePinConversation,
   onDeleteConversation,
+  onRenameConversation,
+  onShareConversation,
+  onOpenUpdateModal,
   settings
 }) => {
+  // Context menu for sections (triggered via long press on mobile or right click on desktop)
+  const [contextMenuConvId, setContextMenuConvId] = useState<string | null>(null);
+  const [editingConvId, setEditingConvId] = useState<string | null>(null);
+  const [editingTitle, setEditingTitle] = useState("");
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const longPressTimerRef = useRef<NodeJS.Timeout | null>(null);
+
   if (!isOpen) return null;
 
-  const navItems = [
-    { screen: 'HOME' as JarvisScreen, label: 'Tableau de Bord Holographique', icon: Home },
-    { screen: 'CHAT' as JarvisScreen, label: 'Canal de Discussion', icon: MessageSquare },
-    { screen: 'COMMAND_CENTER' as JarvisScreen, label: 'Command Center & Outils', icon: Sliders },
-    { screen: 'EXTERNAL_APPS' as JarvisScreen, label: 'Passerelle YouTube / Apps', icon: Tv },
-    { screen: 'NOTIFICATIONS' as JarvisScreen, label: 'Notifications & Alertes', icon: Bell },
-    { screen: 'TASKS' as JarvisScreen, label: 'Gestionnaire de Tâches', icon: CheckSquare },
-    { screen: 'TERMINAL' as JarvisScreen, label: 'Console Terminal TTY', icon: TermIcon },
-    { screen: 'MEMORY' as JarvisScreen, label: 'Coffre-fort Mémoriel', icon: Brain },
-    { screen: 'NOTES' as JarvisScreen, label: 'Bloc-notes & Directives', icon: FileText },
-    { screen: 'SYSTEM' as JarvisScreen, label: 'Diagnostic Réacteur Arc', icon: Cpu },
-    { screen: 'ACTIVITY' as JarvisScreen, label: 'Journal des Opérations', icon: Activity },
-    { screen: 'SETTINGS' as JarvisScreen, label: 'Configuration & Paramètres', icon: Settings },
-    { screen: 'HOLOGRAPHIC_AOD' as JarvisScreen, label: 'Écran de Veille Quantique', icon: Eye }
-  ];
+  // Touch Long-press handlers
+  const handleTouchStart = (convId: string) => {
+    longPressTimerRef.current = setTimeout(() => {
+      setContextMenuConvId(convId);
+      // Vibrate if supported
+      if (navigator.vibrate) navigator.vibrate(50);
+    }, 500);
+  };
+
+  const handleTouchEnd = () => {
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent, convId: string) => {
+    e.preventDefault();
+    setContextMenuConvId(convId);
+  };
+
+  const handleStartRename = (conv: Conversation) => {
+    setEditingConvId(conv.id);
+    setEditingTitle(conv.title);
+    setContextMenuConvId(null);
+  };
+
+  const handleSaveRename = (convId: string) => {
+    if (editingTitle.trim() && onRenameConversation) {
+      onRenameConversation(convId, editingTitle.trim());
+    }
+    setEditingConvId(null);
+  };
+
+  const handleShare = (conv: Conversation) => {
+    setContextMenuConvId(null);
+    if (onShareConversation) {
+      onShareConversation(conv);
+    } else {
+      const shareText = `T-HACK AI • Section: ${conv.title}\n` + 
+        conv.messages.map(m => `[${m.role === 'user' ? 'Moi' : 'T-HACK'}]: ${m.content}`).join('\n\n');
+      navigator.clipboard.writeText(shareText);
+      setShareToast("Lien et contenu de la section copiés !");
+      setTimeout(() => setShareToast(null), 2500);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-40 flex">
       {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-black/70 backdrop-blur-xs transition-opacity" 
-        onClick={onClose}
+        className="fixed inset-0 bg-black/75 backdrop-blur-xs transition-opacity" 
+        onClick={() => {
+          setContextMenuConvId(null);
+          onClose();
+        }}
       />
 
-      {/* Drawer Panel */}
-      <div className="relative w-72 sm:w-80 max-w-[85vw] h-full bg-[#070D12] border-r border-[#007C91]/40 flex flex-col z-10 shadow-[0_0_25px_rgba(0,124,145,0.3)]">
-        {/* Drawer Header */}
-        <div className="p-4 border-b border-[#007C91]/30 flex items-center justify-between">
-          <div className="flex items-center space-x-2">
-            <div className="w-8 h-8 rounded-xs bg-[#0A1219] border border-[#00E5FF] flex items-center justify-center text-[#00E5FF] font-bold shadow-[0_0_8px_rgba(0,229,255,0.4)]">
+      {/* Clean Minimalist Drawer (ChatGPT / DeepSeek style) */}
+      <div className="relative w-72 sm:w-80 max-w-[85vw] h-full bg-[#070D12] border-r border-[#007C91]/30 flex flex-col z-10 shadow-[0_0_30px_rgba(0,124,145,0.3)]">
+        
+        {/* Header */}
+        <div className="p-3.5 border-b border-[#007C91]/20 flex items-center justify-between bg-[#0A1219]">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-7 h-7 rounded bg-[#00E5FF]/10 border border-[#00E5FF]/50 flex items-center justify-center text-[#00E5FF] font-bold text-xs">
               TH
             </div>
-            <div>
-              <div className="text-sm font-bold font-['Chakra_Petch',sans-serif] text-[#E5FCFF]">
-                T-HACKMAN AI
-              </div>
-              <div className="text-[10px] font-mono text-[#00E5FF]">
-                {settings.securityClearanceLevel}
-              </div>
-            </div>
+            <span className="text-sm font-bold font-['Chakra_Petch',sans-serif] tracking-wider text-[#E5FCFF]">
+              T-HACKMAN AI
+            </span>
           </div>
           <button 
             onClick={onClose}
             className="p-1 rounded text-[#6F9DA6] hover:text-[#00E5FF] transition-colors cursor-pointer"
+            title="Fermer"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Scrollable Navigation */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-4">
-          {/* Main Navigation Modules */}
-          <div>
-            <div className="text-[10px] font-mono tracking-wider text-[#6F9DA6] uppercase px-2 mb-1">
-              MODULES DU SYSTÈME
+        {/* Main Navigation links */}
+        <div className="p-3 border-b border-[#007C91]/20 space-y-1 font-mono text-xs">
+          <button
+            onClick={() => {
+              onSelectScreen('HOME');
+              onClose();
+            }}
+            className={`w-full py-2 px-3 rounded flex items-center space-x-2.5 transition-all cursor-pointer ${
+              currentScreen === 'HOME'
+                ? 'bg-[#00E5FF]/20 border border-[#00E5FF] text-[#E5FCFF] font-bold'
+                : 'text-[#8CA0A8] hover:bg-[#0A1219] hover:text-[#E5FCFF]'
+            }`}
+          >
+            <Sparkles className="w-4 h-4 text-[#00E5FF]" />
+            <span>Accueil T-HACKMAN</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectScreen('COMMAND_CENTER');
+              onClose();
+            }}
+            className={`w-full py-2 px-3 rounded flex items-center space-x-2.5 transition-all cursor-pointer ${
+              currentScreen === 'COMMAND_CENTER'
+                ? 'bg-[#00E5FF]/20 border border-[#00E5FF] text-[#E5FCFF] font-bold'
+                : 'text-[#8CA0A8] hover:bg-[#0A1219] hover:text-[#E5FCFF]'
+            }`}
+          >
+            <Sliders className="w-4 h-4 text-[#00E5FF]" />
+            <span>Centre de Commande</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectScreen('TASKS');
+              onClose();
+            }}
+            className={`w-full py-2 px-3 rounded flex items-center space-x-2.5 transition-all cursor-pointer ${
+              currentScreen === 'TASKS'
+                ? 'bg-[#00E5FF]/20 border border-[#00E5FF] text-[#E5FCFF] font-bold'
+                : 'text-[#8CA0A8] hover:bg-[#0A1219] hover:text-[#E5FCFF]'
+            }`}
+          >
+            <CheckSquare className="w-4 h-4 text-[#31F5A3]" />
+            <span>Tâches & Protocoles</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onSelectScreen('KOTLIN_STUDIO');
+              onClose();
+            }}
+            className={`w-full py-2 px-3 rounded flex items-center justify-between transition-all cursor-pointer ${
+              currentScreen === 'KOTLIN_STUDIO'
+                ? 'bg-[#A97BFF]/25 border border-[#A97BFF] text-[#E5FCFF] font-bold'
+                : 'text-[#A97BFF] hover:bg-[#A97BFF]/10 hover:text-[#E5FCFF]'
+            }`}
+          >
+            <div className="flex items-center space-x-2.5">
+              <FileCode2 className="w-4 h-4 text-[#A97BFF]" />
+              <span className="font-semibold">Sources Android (Kotlin)</span>
             </div>
-            <div className="space-y-1">
-              {navItems.map((item) => {
-                const Icon = item.icon;
-                const isSelected = currentScreen === item.screen;
-                return (
-                  <button
-                    key={item.screen}
-                    onClick={() => {
-                      onSelectScreen(item.screen);
-                      onClose();
-                    }}
-                    className={`w-full flex items-center space-x-2.5 px-3 py-2 rounded text-xs font-mono transition-all cursor-pointer ${
-                      isSelected
-                        ? 'bg-[#00E5FF]/20 border border-[#00E5FF]/60 text-[#00E5FF] shadow-[0_0_8px_rgba(0,229,255,0.2)]'
-                        : 'text-[#6F9DA6] hover:text-[#E5FCFF] hover:bg-[#0A1219]'
-                    }`}
-                  >
-                    <Icon className={`w-4 h-4 ${isSelected ? 'text-[#00E5FF]' : 'text-[#6F9DA6]'}`} />
-                    <span className="truncate">{item.label}</span>
-                  </button>
-                );
-              })}
-            </div>
+            <span className="text-[10px] px-1 py-0.5 rounded bg-[#A97BFF]/20 text-[#A97BFF] font-mono">100% KT</span>
+          </button>
+
+          <button
+            onClick={() => {
+              onNewConversation();
+              onSelectScreen('CHAT');
+              onClose();
+            }}
+            className="w-full py-2 px-3 rounded bg-[#00E5FF]/15 hover:bg-[#00E5FF]/25 border border-[#00E5FF]/40 text-[#00E5FF] font-medium flex items-center justify-center space-x-2 transition-all cursor-pointer shadow-[0_0_10px_rgba(0,229,255,0.15)] mt-1.5"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nouvelle discussion IA</span>
+          </button>
+        </div>
+
+        {/* Sections où on a travaillé (Conversation list) */}
+        <div className="flex-1 overflow-y-auto p-3 space-y-1">
+          <div className="text-[10px] font-mono text-[#6F9DA6] uppercase px-2 mb-2 tracking-wider flex items-center justify-between">
+            <span>SECTIONS DE TRAVAIL</span>
+            <span className="text-[9px] text-[#426972]">(Appui long = Options)</span>
           </div>
 
-          {/* Sessions List */}
-          <div>
-            <div className="flex items-center justify-between px-2 mb-1">
-              <span className="text-[10px] font-mono tracking-wider text-[#6F9DA6] uppercase">
-                SESSIONS ENREGISTRÉES
-              </span>
-              <button
-                onClick={() => {
-                  onNewConversation();
-                  onSelectScreen('CHAT');
-                  onClose();
-                }}
-                className="text-[10px] font-mono text-[#00E5FF] hover:underline flex items-center gap-0.5 cursor-pointer"
-              >
-                <Plus className="w-3 h-3" /> NOUVELLE
-              </button>
+          {conversations.length === 0 ? (
+            <div className="text-center py-8 text-xs text-[#6F9DA6] font-mono">
+              Aucune section enregistrée
             </div>
+          ) : (
+            conversations.map((conv) => {
+              const isActive = conv.id === activeConversationId;
+              const isEditing = editingConvId === conv.id;
+              const showMenu = contextMenuConvId === conv.id;
 
-            <div className="space-y-1">
-              {conversations.map((conv) => {
-                const isAct = conv.id === activeConversationId && currentScreen === 'CHAT';
-                return (
-                  <div
-                    key={conv.id}
-                    className={`group flex items-center justify-between px-2.5 py-1.5 rounded text-xs font-mono transition-all ${
-                      isAct
-                        ? 'bg-[#0A1219] border border-[#007C91]/60 text-[#78F7FF]'
-                        : 'text-[#6F9DA6] hover:bg-[#0A1219]/60 hover:text-[#E5FCFF]'
-                    }`}
-                  >
-                    <button
+              return (
+                <div key={conv.id} className="relative group">
+                  {isEditing ? (
+                    <div className="flex items-center space-x-1 p-1 bg-[#0A1219] border border-[#00E5FF] rounded">
+                      <input
+                        type="text"
+                        value={editingTitle}
+                        onChange={(e) => setEditingTitle(e.target.value)}
+                        autoFocus
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') handleSaveRename(conv.id);
+                          if (e.key === 'Escape') setEditingConvId(null);
+                        }}
+                        className="flex-1 bg-transparent text-xs text-[#E5FCFF] outline-none px-1"
+                      />
+                      <button
+                        onClick={() => handleSaveRename(conv.id)}
+                        className="p-1 text-[#31F5A3] hover:bg-[#31F5A3]/20 rounded cursor-pointer"
+                        title="Valider"
+                      >
+                        <Check className="w-3.5 h-3.5" />
+                      </button>
+                      <button
+                        onClick={() => setEditingConvId(null)}
+                        className="p-1 text-[#FF4660] hover:bg-[#FF4660]/20 rounded cursor-pointer"
+                        title="Annuler"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div
+                      onTouchStart={() => handleTouchStart(conv.id)}
+                      onTouchEnd={handleTouchEnd}
+                      onTouchMove={handleTouchEnd}
+                      onContextMenu={(e) => handleContextMenu(e, conv.id)}
                       onClick={() => {
                         onSelectConversation(conv.id);
-                        onSelectScreen('CHAT');
                         onClose();
                       }}
-                      className="flex-1 flex items-center space-x-2 text-left truncate cursor-pointer"
+                      className={`w-full text-left py-2.5 px-3 rounded flex items-center justify-between text-xs transition-all cursor-pointer select-none ${
+                        isActive
+                          ? 'bg-[#00E5FF]/20 border border-[#00E5FF]/60 text-[#E5FCFF] font-medium'
+                          : 'text-[#8CA0A8] hover:bg-[#0A1219] hover:text-[#E5FCFF]'
+                      }`}
                     >
-                      <MessageSquare className="w-3.5 h-3.5 shrink-0 opacity-70" />
-                      <span className="truncate">{conv.title}</span>
-                    </button>
+                      <div className="flex items-center space-x-2.5 truncate">
+                        <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#00E5FF]' : 'text-[#6F9DA6]'}`} />
+                        <span className="truncate">{conv.title}</span>
+                      </div>
+                      
+                      {/* Mobile options dots button */}
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContextMenuConvId(showMenu ? null : conv.id);
+                        }}
+                        className="opacity-60 hover:opacity-100 p-1 text-[#6F9DA6] hover:text-[#00E5FF] transition-opacity cursor-pointer"
+                        title="Options de la section"
+                      >
+                        &bull;&bull;&bull;
+                      </button>
+                    </div>
+                  )}
 
-                    <div className="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {/* Context Menu Modal / Popover */}
+                  {showMenu && (
+                    <div className="absolute right-2 top-10 z-50 w-48 bg-[#0D1821] border border-[#00E5FF]/50 rounded-md shadow-xl py-1 text-xs animate-in fade-in duration-150">
+                      <div className="px-3 py-1.5 border-b border-[#007C91]/30 text-[10px] font-mono text-[#6F9DA6] uppercase truncate">
+                        {conv.title}
+                      </div>
+
+                      {/* Modifier une section */}
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
-                          onTogglePinConversation(conv.id);
+                          handleStartRename(conv);
                         }}
-                        className={`p-1 hover:text-[#00E5FF] ${conv.isPinned ? 'text-[#00E5FF]' : 'text-[#6F9DA6]'}`}
-                        title={conv.isPinned ? "Désépingler" : "Épingler"}
+                        className="w-full text-left px-3 py-2 flex items-center space-x-2 text-[#E5FCFF] hover:bg-[#00E5FF]/15 transition-colors cursor-pointer"
                       >
-                        <Pin className="w-3 h-3" />
+                        <Edit2 className="w-3.5 h-3.5 text-[#00E5FF]" />
+                        <span>Modifier le titre</span>
                       </button>
-                      {conversations.length > 1 && (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            onDeleteConversation(conv.id);
-                          }}
-                          className="p-1 hover:text-[#FF4660] text-[#6F9DA6]"
-                          title="Supprimer la session"
-                        >
-                          <Trash2 className="w-3 h-3" />
-                        </button>
-                      )}
+
+                      {/* Partager une section */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleShare(conv);
+                        }}
+                        className="w-full text-left px-3 py-2 flex items-center space-x-2 text-[#E5FCFF] hover:bg-[#00E5FF]/15 transition-colors cursor-pointer"
+                      >
+                        <Share2 className="w-3.5 h-3.5 text-[#31F5A3]" />
+                        <span>Partager la section</span>
+                      </button>
+
+                      {/* Supprimer une section */}
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setContextMenuConvId(null);
+                          onDeleteConversation(conv.id);
+                        }}
+                        className="w-full text-left px-3 py-2 flex items-center space-x-2 text-[#FF4660] hover:bg-[#FF4660]/15 transition-colors cursor-pointer"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Supprimer la section</span>
+                      </button>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
 
-        {/* Drawer Footer Status */}
-        <div className="p-3 border-t border-[#007C91]/30 bg-[#0A1219]">
-          <div className="flex items-center space-x-2 text-xs font-mono text-[#6F9DA6]">
-            <ShieldCheck className="w-4 h-4 text-[#31F5A3]" />
-            <span className="truncate">STARK PROTOCOL MK-85</span>
+        {/* Share Feedback Toast */}
+        {shareToast && (
+          <div className="mx-3 mb-2 p-2 bg-[#31F5A3]/20 border border-[#31F5A3] rounded text-[11px] text-[#31F5A3] text-center font-mono">
+            {shareToast}
           </div>
-          <div className="text-[10px] font-mono text-[#6F9DA6]/60 mt-0.5">
-            Model: {settings.aiModel}
-          </div>
+        )}
+
+        {/* Footer: Only Settings & Update trigger */}
+        <div className="p-3 border-t border-[#007C91]/20 space-y-1.5 bg-[#0A1219]">
+          
+          {/* Update button */}
+          <button
+            onClick={() => {
+              if (onOpenUpdateModal) onOpenUpdateModal();
+              onClose();
+            }}
+            className="w-full py-2 px-3 rounded flex items-center justify-between text-xs font-mono text-[#31F5A3] bg-[#31F5A3]/10 hover:bg-[#31F5A3]/20 border border-[#31F5A3]/30 transition-all cursor-pointer"
+          >
+            <div className="flex items-center space-x-2">
+              <Download className="w-4 h-4 text-[#31F5A3]" />
+              <span>Mise à jour v2.5</span>
+            </div>
+            <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#31F5A3]/20 text-[#31F5A3] font-bold">
+              Prête
+            </span>
+          </button>
+
+          {/* Reboot / Splash trigger */}
+          <button
+            onClick={() => {
+              onSelectScreen('SPLASH');
+              onClose();
+            }}
+            className="w-full py-1.5 px-3 rounded flex items-center justify-between text-xs font-mono text-[#6F9DA6] hover:text-[#00E5FF] hover:bg-[#070D12] transition-all cursor-pointer"
+            title="Relancer l'animation d'initialisation système"
+          >
+            <div className="flex items-center space-x-2">
+              <Sparkles className="w-3.5 h-3.5 text-[#00E5FF]" />
+              <span>Initialisation Système (Splash)</span>
+            </div>
+            <span className="text-[10px] text-[#00E5FF]">&gt;</span>
+          </button>
+
+          {/* Settings button */}
+          <button
+            onClick={() => {
+              onSelectScreen('SETTINGS');
+              onClose();
+            }}
+            className={`w-full py-2 px-3 rounded flex items-center justify-between text-xs font-mono transition-all cursor-pointer ${
+              currentScreen === 'SETTINGS'
+                ? 'bg-[#00E5FF]/20 border border-[#00E5FF] text-[#00E5FF] font-bold'
+                : 'text-[#6F9DA6] hover:bg-[#070D12] hover:text-[#E5FCFF]'
+            }`}
+          >
+            <div className="flex items-center space-x-2">
+              <Settings className="w-4 h-4 text-[#00E5FF]" />
+              <span>Paramètres</span>
+            </div>
+            <span className="text-[10px] text-[#6F9DA6]">&bull;</span>
+          </button>
         </div>
+
       </div>
     </div>
   );
